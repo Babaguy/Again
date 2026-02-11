@@ -6,7 +6,7 @@
     android:padding="16dp">
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnLeft"
+        android:id="@+id/btnPlus"
         style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
         android:layout_width="64dp"
         android:layout_height="56dp"
@@ -16,6 +16,8 @@
         app:icon="@drawable/ic_plus"
         app:iconGravity="textStart"
         app:iconPadding="0dp"
+        app:backgroundTint="#E6DCF6"
+        app:iconTint="#21103E"
         app:layout_constraintTop_toTopOf="@+id/searchContainer"
         app:layout_constraintBottom_toBottomOf="@+id/searchContainer"
         app:layout_constraintStart_toStartOf="parent" />
@@ -31,14 +33,14 @@
         android:paddingHorizontal="16dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/btnLeft"
-        app:layout_constraintEnd_toStartOf="@+id/btnRight">
+        app:layout_constraintStart_toEndOf="@+id/btnPlus"
+        app:layout_constraintEnd_toStartOf="@+id/btnAcc">
 
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@drawable/ic_search"
-            app:tint="#757575" />
+            app:tint="#21103E" />
 
         <EditText
             android:id="@+id/editTextSearch"
@@ -47,8 +49,10 @@
             android:layout_weight="1"
             android:background="@android:color/transparent"
             android:hint="Search here..."
+            android:textColorHint="#9F8FBC"
+            android:textColor="#21103E"
             android:inputType="text"
-            android:paddingStart="12dp"
+            android:paddingStart="5dp"
             android:textSize="16sp" />
 
         <ImageView
@@ -59,11 +63,11 @@
             android:clickable="true"
             android:focusable="true"
             android:background="?attr/selectableItemBackgroundBorderless"
-            app:tint="#757575" />
+            app:tint="#21103E" />
     </LinearLayout>
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnRight"
+        android:id="@+id/btnAcc"
         style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
         android:layout_width="64dp"
         android:layout_height="56dp"
@@ -73,6 +77,8 @@
         app:icon="@drawable/ic_account"
         app:iconGravity="textStart"
         app:iconPadding="0dp"
+        app:backgroundTint="#E6DCF6"
+        app:iconTint="#21103E"
         app:layout_constraintTop_toTopOf="@+id/searchContainer"
         app:layout_constraintBottom_toBottomOf="@+id/searchContainer"
         app:layout_constraintEnd_toEndOf="parent" />

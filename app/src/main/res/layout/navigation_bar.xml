@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="100dp"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:background="@android:color/transparent">
+
+    <View
+        android:id="@+id/nav_background_strip"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:background="#FFFFFF"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <ImageButton
+        android:id="@+id/btn_center"
+        android:layout_width="200dp"
+        android:layout_height="80dp"
+        android:background="@drawable/home_btn"
+        android:src="@drawable/ic_home"
+        app:backgroundTint="#8361C5"
+        app:tint="#21103E"
+        android:elevation="8dp"
+        android:scaleType="centerInside"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <ImageButton
+        android:id="@+id/btn_left"
+        android:layout_width="0dp"
+        android:layout_height="70dp"
+        android:layout_marginEnd="-40dp"
+        android:background="@drawable/next_to_home_left"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_chat"
+        app:backgroundTint="#B292E7"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/btn_center"
+        app:layout_constraintStart_toStartOf="parent"
+        app:tint="#21103E" />
+
+    <ImageButton
+        android:id="@+id/btn_right"
+        android:layout_width="0dp"
+        android:layout_height="70dp"
+        android:background="@drawable/next_to_home_right"
+        android:src="@drawable/ic_ad"
+
+        app:backgroundTint="#B292E7"
+        app:tint="#21103E"
+        android:scaleType="centerInside"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/btn_center"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginStart="-40dp" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
