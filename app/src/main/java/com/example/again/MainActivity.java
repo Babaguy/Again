@@ -1,16 +1,23 @@
 package com.example.again;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ObjectAnimator;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.transition.ChangeBounds;
 import android.transition.TransitionManager;
+import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.constraintlayout.widget.ConstraintSet;
@@ -21,6 +28,8 @@ public class MainActivity extends AppCompatActivity {
 
     private ImageButton btnLeft, btnCenter, btnRight;
     private int currentTab = 1;
+    private FrameLayout splashOverlay;
+    private boolean splashDismissed = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,6 +37,9 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+
+        // Add splash overlay on top of everything
+        showSplashOverlay();
 
         // Search bar expand/collapse on focus
         ConstraintLayout searchBarLayout = findViewById(R.id.search_bar);
@@ -106,8 +118,63 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void showSplashOverlay() {
+        splashOverlay = new FrameLayout(this);
+        splashOverlay.setBackgroundColor(Color.parseColor("#21103E"));
+        splashOverlay.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+
+        TextView title = new TextView(this);
+        title.setText("Again");
+        title.setTextColor(Color.parseColor("#E6DCF6"));
+        title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 52);
+        title.setLetterSpacing(0.12f);
+        title.setTypeface(android.graphics.Typeface.create("sans-serif-light", android.graphics.Typeface.NORMAL));
+
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT);
+        params.gravity = Gravity.CENTER;
+        title.setLayoutParams(params);
+
+        splashOverlay.addView(title);
+
+        ViewGroup root = (ViewGroup) getWindow().getDecorView();
+        root.addView(splashOverlay);
+    }
+
+    private void dismissSplash() {
+        if (splashDismissed || splashOverlay == null) return;
+        splashDismissed = true;
+
+        splashOverlay.post(() -> {
+            float targetY = -splashOverlay.getHeight();
+            ObjectAnimator animator = ObjectAnimator.ofFloat(splashOverlay, "translationY", 0f, targetY);
+            animator.setDuration(550);
+            animator.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
+            animator.addListener(new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                    ViewGroup root = (ViewGroup) getWindow().getDecorView();
+                    root.removeView(splashOverlay);
+                    splashOverlay = null;
+                }
+            });
+            animator.start();
+        });
+    }
+
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
+        // Intercept the first tap to dismiss the splash
+        if (!splashDismissed && splashOverlay != null) {
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                dismissSplash();
+            }
+            return true;
+        }
+
         if (event.getAction() == MotionEvent.ACTION_DOWN) {
             View focused = getCurrentFocus();
             if (focused instanceof EditText) {
