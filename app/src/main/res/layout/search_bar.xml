@@ -52,6 +52,7 @@
             android:textColorHint="#9F8FBC"
             android:textColor="#21103E"
             android:inputType="text"
+            android:imeOptions="actionDone"
             android:paddingStart="5dp"
             android:textSize="16sp" />
 
