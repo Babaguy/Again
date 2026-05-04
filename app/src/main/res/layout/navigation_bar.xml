@@ -13,7 +13,7 @@
         android:id="@+id/nav_background_strip"
         android:layout_width="match_parent"
         android:layout_height="60dp"
-        android:background="#FFFFFF"
+        android:background="#21103E"
         app:layout_constraintBottom_toBottomOf="parent" />
 
     <ImageButton
@@ -22,7 +22,7 @@
         android:layout_height="80dp"
         android:background="@drawable/home_btn"
         android:src="@drawable/ic_home"
-        app:tint="#21103E"
+        app:tint="#E6DCF6"
         android:elevation="8dp"
         android:clipToPadding="false"
         android:clipChildren="false"
@@ -38,22 +38,22 @@
         android:layout_marginEnd="-40dp"
         android:background="@drawable/next_to_home_left"
         android:scaleType="centerInside"
-        android:src="@drawable/ic_chat"
-        app:backgroundTint="#B292E7"
+        android:src="@drawable/ic_ad"
+        app:backgroundTint="#2D1A5C"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/btn_center"
         app:layout_constraintStart_toStartOf="parent"
-        app:tint="#21103E" />
+        app:tint="#E6DCF6" />
 
     <ImageButton
         android:id="@+id/btn_right"
         android:layout_width="0dp"
         android:layout_height="70dp"
         android:background="@drawable/next_to_home_right"
-        android:src="@drawable/ic_ad"
+        android:src="@drawable/ic_chat"
 
-        app:backgroundTint="#B292E7"
-        app:tint="#21103E"
+        app:backgroundTint="#2D1A5C"
+        app:tint="#E6DCF6"
         android:scaleType="centerInside"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toEndOf="@+id/btn_center"

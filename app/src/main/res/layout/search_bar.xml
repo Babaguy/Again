@@ -16,8 +16,8 @@
         app:icon="@drawable/ic_plus"
         app:iconGravity="textStart"
         app:iconPadding="0dp"
-        app:backgroundTint="#E6DCF6"
-        app:iconTint="#21103E"
+        app:backgroundTint="#8361C5"
+        app:iconTint="#E6DCF6"
         app:layout_constraintTop_toTopOf="@+id/searchContainer"
         app:layout_constraintBottom_toBottomOf="@+id/searchContainer"
         app:layout_constraintStart_toStartOf="parent" />
@@ -40,7 +40,7 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@drawable/ic_search"
-            app:tint="#21103E" />
+            app:tint="#B292E7" />
 
         <EditText
             android:id="@+id/editTextSearch"
@@ -50,7 +50,7 @@
             android:background="@android:color/transparent"
             android:hint="Search here..."
             android:textColorHint="#9F8FBC"
-            android:textColor="#21103E"
+            android:textColor="#E6DCF6"
             android:inputType="text"
             android:imeOptions="actionDone"
             android:paddingStart="5dp"
@@ -64,7 +64,7 @@
             android:clickable="true"
             android:focusable="true"
             android:background="?attr/selectableItemBackgroundBorderless"
-            app:tint="#21103E" />
+            app:tint="#B292E7" />
     </LinearLayout>
 
     <com.google.android.material.button.MaterialButton
@@ -78,8 +78,8 @@
         app:icon="@drawable/ic_account_outline"
         app:iconGravity="textStart"
         app:iconPadding="0dp"
-        app:backgroundTint="#E6DCF6"
-        app:iconTint="#21103E"
+        app:backgroundTint="#8361C5"
+        app:iconTint="#E6DCF6"
         app:layout_constraintTop_toTopOf="@+id/searchContainer"
         app:layout_constraintBottom_toBottomOf="@+id/searchContainer"
         app:layout_constraintEnd_toEndOf="parent" />

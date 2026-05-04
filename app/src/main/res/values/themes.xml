@@ -6,4 +6,38 @@
     </style>
 
     <style name="Theme.Again" parent="Base.Theme.Again" />
+
+    <style name="AdDetailDialog" parent="Theme.Material3.DayNight.Dialog">
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowAnimationStyle">@style/AdDetailAnim</item>
+    </style>
+
+    <style name="AdDetailAnim">
+        <item name="android:windowEnterAnimation">@anim/slide_in_bottom</item>
+        <item name="android:windowExitAnimation">@anim/slide_out_bottom</item>
+    </style>
+
+    <!-- Purple-themed alert dialog -->
+    <style name="PurpleAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorSurface">#2D1A5C</item>
+        <item name="colorSurfaceContainerHigh">#2D1A5C</item>
+        <item name="colorSurfaceContainerHighest">#2D1A5C</item>
+        <item name="colorOnSurface">#E6DCF6</item>
+        <item name="android:textColorPrimary">#E6DCF6</item>
+        <item name="android:textColorSecondary">#B292E7</item>
+        <item name="colorPrimary">#8361C5</item>
+        <item name="android:background">#2D1A5C</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/PurpleDialogTitle</item>
+        <item name="materialAlertDialogBodyTextStyle">@style/PurpleDialogBody</item>
+    </style>
+
+    <style name="PurpleDialogTitle" parent="MaterialAlertDialog.Material3.Title.Text">
+        <item name="android:textColor">#E6DCF6</item>
+    </style>
+
+    <style name="PurpleDialogBody" parent="MaterialAlertDialog.Material3.Body.Text">
+        <item name="android:textColor">#B292E7</item>
+    </style>
+
 </resources>
