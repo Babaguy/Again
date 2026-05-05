@@ -1,0 +1,517 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#21103E"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
+        android:paddingBottom="48dp">
+
+        <!-- Top bar -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="52dp"
+            android:paddingBottom="8dp">
+
+            <ImageView
+                android:id="@+id/btnCreateAdClose"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="start|center_vertical"
+                android:src="@drawable/ic_close"
+                android:padding="8dp"
+                android:tint="#E6DCF6"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+
+            <TextView
+                android:id="@+id/tvCreateAdTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="Post an Ad"
+                android:textColor="#E6DCF6"
+                android:textSize="22sp"
+                android:fontFamily="sans-serif-medium" />
+        </FrameLayout>
+
+        <!-- Product Name -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PRODUCT NAME"
+            android:textColor="#B292E7"
+            android:textSize="12sp"
+            android:letterSpacing="0.1"
+            android:layout_marginTop="28dp"
+            android:layout_marginBottom="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="@drawable/auth_input_background"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:gravity="center_vertical">
+            <EditText
+                android:id="@+id/etAdName"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@android:color/transparent"
+                android:textColor="#E6DCF6"
+                android:textColorHint="#9F8FBC"
+                android:hint="What are you selling?"
+                android:inputType="textCapSentences"
+                android:textSize="15sp"
+                android:singleLine="true"
+                android:imeOptions="actionNext" />
+        </LinearLayout>
+
+        <!-- Condition -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="CONDITION"
+            android:textColor="#B292E7"
+            android:textSize="12sp"
+            android:letterSpacing="0.1"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="10dp" />
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/conditionGroup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:singleSelection="true"
+            app:selectionRequired="true"
+            app:chipSpacingHorizontal="8dp"
+            app:chipSpacingVertical="8dp">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/btnCondition1"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Second-hand"
+                android:textColor="@color/chip_text_color"
+                app:chipBackgroundColor="@color/chip_bg_color"
+                app:chipStrokeColor="#8361C5"
+                app:chipStrokeWidth="1.5dp"
+                app:chipIconVisible="false" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/btnCondition2"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="As new"
+                android:textColor="@color/chip_text_color"
+                app:chipBackgroundColor="@color/chip_bg_color"
+                app:chipStrokeColor="#8361C5"
+                app:chipStrokeWidth="1.5dp"
+                app:chipIconVisible="false" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/btnCondition3"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Unopened"
+                android:textColor="@color/chip_text_color"
+                app:chipBackgroundColor="@color/chip_bg_color"
+                app:chipStrokeColor="#8361C5"
+                app:chipStrokeWidth="1.5dp"
+                app:chipIconVisible="false" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/btnCondition4"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Other"
+                android:textColor="@color/chip_text_color"
+                app:chipBackgroundColor="@color/chip_bg_color"
+                app:chipStrokeColor="#8361C5"
+                app:chipStrokeWidth="1.5dp"
+                app:chipIconVisible="false" />
+
+        </com.google.android.material.chip.ChipGroup>
+
+        <!-- Photos -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PHOTOS (UP TO 3)"
+            android:textColor="#B292E7"
+            android:textSize="12sp"
+            android:letterSpacing="0.1"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="10dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="3">
+
+            <!-- Slot 0 -->
+            <FrameLayout
+                android:id="@+id/slotContainer0"
+                android:layout_width="0dp"
+                android:layout_height="100dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/image_slot_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground">
+                <ImageView
+                    android:id="@+id/ivSlot0"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:visibility="gone" />
+                <LinearLayout
+                    android:id="@+id/addIcon0"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:orientation="vertical"
+                    android:gravity="center">
+                    <ImageView
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:src="@drawable/ic_add_photo" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Add"
+                        android:textColor="#9F8FBC"
+                        android:textSize="10sp"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
+            </FrameLayout>
+
+            <!-- Slot 1 -->
+            <FrameLayout
+                android:id="@+id/slotContainer1"
+                android:layout_width="0dp"
+                android:layout_height="100dp"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="3dp"
+                android:background="@drawable/image_slot_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground">
+                <ImageView
+                    android:id="@+id/ivSlot1"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:visibility="gone" />
+                <LinearLayout
+                    android:id="@+id/addIcon1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:orientation="vertical"
+                    android:gravity="center">
+                    <ImageView
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:src="@drawable/ic_add_photo" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Add"
+                        android:textColor="#9F8FBC"
+                        android:textSize="10sp"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
+            </FrameLayout>
+
+            <!-- Slot 2 -->
+            <FrameLayout
+                android:id="@+id/slotContainer2"
+                android:layout_width="0dp"
+                android:layout_height="100dp"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/image_slot_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground">
+                <ImageView
+                    android:id="@+id/ivSlot2"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:visibility="gone" />
+                <LinearLayout
+                    android:id="@+id/addIcon2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:orientation="vertical"
+                    android:gravity="center">
+                    <ImageView
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:src="@drawable/ic_add_photo" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Add"
+                        android:textColor="#9F8FBC"
+                        android:textSize="10sp"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
+            </FrameLayout>
+
+        </LinearLayout>
+
+        <!-- Delivery Area -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="DELIVERY AREA"
+            android:textColor="#B292E7"
+            android:textSize="12sp"
+            android:letterSpacing="0.1"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="@drawable/auth_input_background"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:gravity="center_vertical">
+            <EditText
+                android:id="@+id/etAdArea"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@android:color/transparent"
+                android:textColor="#E6DCF6"
+                android:textColorHint="#9F8FBC"
+                android:hint="City / region"
+                android:inputType="textCapWords"
+                android:textSize="15sp"
+                android:singleLine="true"
+                android:imeOptions="actionNext" />
+        </LinearLayout>
+
+        <!-- Delivery Options -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="DELIVERY OPTIONS"
+            android:textColor="#B292E7"
+            android:textSize="12sp"
+            android:letterSpacing="0.1"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/cbPickup"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Pickup"
+                android:textColor="#E6DCF6"
+                android:textSize="14sp"
+                app:buttonTint="#8361C5" />
+
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/cbShipping"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:text="Shipping"
+                android:textColor="#E6DCF6"
+                android:textSize="14sp"
+                app:buttonTint="#8361C5" />
+
+        </LinearLayout>
+
+        <!-- Price -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PRICE"
+            android:textColor="#B292E7"
+            android:textSize="12sp"
+            android:letterSpacing="0.1"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="@drawable/auth_input_background"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:gravity="center_vertical">
+            <EditText
+                android:id="@+id/etAdPrice"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@android:color/transparent"
+                android:textColor="#E6DCF6"
+                android:textColorHint="#9F8FBC"
+                android:hint="0.00"
+                android:inputType="numberDecimal"
+                android:textSize="15sp"
+                android:singleLine="true"
+                android:imeOptions="actionDone" />
+        </LinearLayout>
+
+        <!-- Item Age -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ITEM AGE"
+            android:textColor="#B292E7"
+            android:textSize="12sp"
+            android:letterSpacing="0.1"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="10dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- Number input -->
+            <LinearLayout
+                android:layout_width="96dp"
+                android:layout_height="56dp"
+                android:background="@drawable/auth_input_background"
+                android:orientation="horizontal"
+                android:paddingHorizontal="16dp"
+                android:gravity="center_vertical">
+                <EditText
+                    android:id="@+id/etAdAge"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@android:color/transparent"
+                    android:textColor="#E6DCF6"
+                    android:textColorHint="#9F8FBC"
+                    android:hint="0"
+                    android:inputType="number"
+                    android:textSize="15sp"
+                    android:singleLine="true"
+                    android:imeOptions="actionDone" />
+            </LinearLayout>
+
+            <!-- Unit chips -->
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/ageUnitGroup"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                app:singleSelection="true"
+                app:chipSpacingHorizontal="8dp">
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/btnAgeMonths"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Months"
+                    android:textColor="@color/chip_text_color"
+                    app:chipBackgroundColor="@color/chip_bg_color"
+                    app:chipStrokeColor="#8361C5"
+                    app:chipStrokeWidth="1.5dp"
+                    app:chipIconVisible="false" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/btnAgeYears"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Years"
+                    android:textColor="@color/chip_text_color"
+                    app:chipBackgroundColor="@color/chip_bg_color"
+                    app:chipStrokeColor="#8361C5"
+                    app:chipStrokeWidth="1.5dp"
+                    app:chipIconVisible="false" />
+
+            </com.google.android.material.chip.ChipGroup>
+        </LinearLayout>
+
+        <!-- Description -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="DESCRIPTION (OPTIONAL)"
+            android:textColor="#B292E7"
+            android:textSize="12sp"
+            android:letterSpacing="0.1"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/auth_input_background"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="6dp">
+
+            <EditText
+                android:id="@+id/etAdDescription"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                android:textColor="#E6DCF6"
+                android:textColorHint="#9F8FBC"
+                android:hint="Describe your item…"
+                android:inputType="textMultiLine|textCapSentences"
+                android:minLines="3"
+                android:maxLines="6"
+                android:textSize="15sp"
+                android:maxLength="1000"
+                android:gravity="top" />
+
+            <TextView
+                android:id="@+id/tvDescCounter"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="0 / 1000"
+                android:textColor="#9F8FBC"
+                android:textSize="11sp"
+                android:gravity="end"
+                android:layout_marginTop="2dp" />
+        </LinearLayout>
+
+        <!-- Post Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnPostAd"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="36dp"
+            android:text="Post Ad"
+            android:textColor="#E6DCF6"
+            android:textSize="16sp"
+            android:letterSpacing="0.05"
+            app:backgroundTint="#8361C5"
+            app:cornerRadius="14dp" />
+
+    </LinearLayout>
+</ScrollView>

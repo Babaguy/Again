@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#21103E">
+
+    <!-- Top bar -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="52dp"
+        android:paddingBottom="8dp"
+        android:paddingHorizontal="12dp">
+
+        <!-- Edit / Save toggle button (left) -->
+        <ImageView
+            android:id="@+id/btnEditProfile"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="start|center_vertical"
+            android:src="@drawable/ic_edit"
+            android:padding="8dp"
+            android:tint="#B292E7"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="My Profile"
+            android:textColor="#E6DCF6"
+            android:textSize="22sp"
+            android:fontFamily="sans-serif-medium" />
+
+        <!-- Close button (right) -->
+        <ImageView
+            android:id="@+id/btnCloseProfile"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="end|center_vertical"
+            android:src="@drawable/ic_close"
+            android:padding="8dp"
+            android:tint="#E6DCF6"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+    </FrameLayout>
+
+    <!-- Avatar circle with initial -->
+    <FrameLayout
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="32dp"
+        android:background="@drawable/profile_avatar_bg">
+        <TextView
+            android:id="@+id/tvProfileInitial"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textColor="#E6DCF6"
+            android:textSize="42sp"
+            android:fontFamily="sans-serif-light" />
+    </FrameLayout>
+
+    <!-- Username (editable) -->
+    <EditText
+        android:id="@+id/etProfileUsername"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:layout_marginHorizontal="48dp"
+        android:gravity="center"
+        android:textColor="#E6DCF6"
+        android:textSize="22sp"
+        android:fontFamily="sans-serif-medium"
+        android:background="@null"
+        android:inputType="textPersonName"
+        android:focusable="false"
+        android:focusableInTouchMode="false"
+        android:cursorVisible="false"
+        android:paddingVertical="6dp"
+        android:paddingHorizontal="12dp"
+        android:hint="Username"
+        android:textColorHint="#9F8FBC" />
+
+    <!-- Info section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="28dp"
+        android:layout_marginHorizontal="28dp">
+
+        <!-- Email row (read-only) -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="EMAIL"
+            android:textColor="#B292E7"
+            android:textSize="11sp"
+            android:letterSpacing="0.1"
+            android:layout_marginBottom="6dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@drawable/auth_input_background"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:gravity="center_vertical">
+            <TextView
+                android:id="@+id/tvProfileGmail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#9F8FBC"
+                android:textSize="15sp" />
+        </LinearLayout>
+
+        <!-- Phone row (editable) -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PHONE"
+            android:textColor="#B292E7"
+            android:textSize="11sp"
+            android:letterSpacing="0.1"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="6dp" />
+
+        <LinearLayout
+            android:id="@+id/phoneContainer"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@drawable/auth_input_background"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:gravity="center_vertical">
+            <EditText
+                android:id="@+id/etProfilePhone"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@null"
+                android:textColor="#E6DCF6"
+                android:textSize="15sp"
+                android:inputType="phone"
+                android:focusable="false"
+                android:focusableInTouchMode="false"
+                android:cursorVisible="false"
+                android:hint="Not provided"
+                android:textColorHint="#9F8FBC" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Spacer -->
+    <View
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- Log Out -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnLogout"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginHorizontal="28dp"
+        android:layout_marginBottom="48dp"
+        android:text="Log Out"
+        android:textColor="#E6DCF6"
+        android:textSize="16sp"
+        app:backgroundTint="#3D1A7A"
+        app:cornerRadius="14dp"
+        app:strokeColor="#8361C5"
+        app:strokeWidth="1.5dp" />
+
+</LinearLayout>

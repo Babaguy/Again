@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Dim background -->
+    <View
+        android:id="@+id/dimBackground"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#99000000" />
+
+    <!-- Bottom sheet -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/detailSheet"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="@drawable/rounded_top_bg"
+        android:clipToPadding="false">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="48dp">
+
+            <!-- Drag zone: full-width 48 dp touch target; the little line lives inside -->
+            <FrameLayout
+                android:id="@+id/dragHandleZone"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true">
+
+                <View
+                    android:layout_width="40dp"
+                    android:layout_height="4dp"
+                    android:layout_gravity="center"
+                    android:background="#8361C5"
+                    android:alpha="0.5" />
+
+            </FrameLayout>
+
+            <!-- Image pager (swipeable) -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="220dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="8dp"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="#2D1A5C">
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+
+                    <androidx.viewpager2.widget.ViewPager2
+                        android:id="@+id/vpImages"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent" />
+
+                    <!-- Photo counter badge (bottom-end corner) -->
+                    <TextView
+                        android:id="@+id/tvDetailPhotoCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom|end"
+                        android:layout_margin="10dp"
+                        android:background="@drawable/photo_count_bg"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="4dp"
+                        android:textColor="#FFFFFF"
+                        android:textSize="12sp"
+                        android:fontFamily="sans-serif-medium"
+                        android:visibility="gone" />
+
+                    <!-- Dot indicator -->
+                    <LinearLayout
+                        android:id="@+id/llDots"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom|center_horizontal"
+                        android:layout_marginBottom="10dp"
+                        android:orientation="horizontal" />
+
+                </FrameLayout>
+
+            </androidx.cardview.widget.CardView>
+
+            <!-- Content padding -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="24dp">
+
+                <!-- Dates row -->
+                <TextView
+                    android:id="@+id/tvDetailPostedDate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:textColor="#9F8FBC"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/tvDetailEditedDate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textColor="#9F8FBC"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
+
+                <!-- Product name -->
+                <TextView
+                    android:id="@+id/tvDetailName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:textColor="#E6DCF6"
+                    android:textSize="22sp"
+                    android:fontFamily="sans-serif-medium" />
+
+                <!-- Price -->
+                <TextView
+                    android:id="@+id/tvDetailPrice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textColor="#B292E7"
+                    android:textSize="20sp"
+                    android:fontFamily="sans-serif-medium" />
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="18dp"
+                    android:layout_marginBottom="14dp"
+                    android:background="#8361C5"
+                    android:alpha="0.3" />
+
+                <!-- Condition -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="CONDITION"
+                    android:textColor="#B292E7"
+                    android:textSize="11sp"
+                    android:letterSpacing="0.1"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/tvDetailCondition"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#E6DCF6"
+                    android:textSize="15sp" />
+
+                <!-- Item age -->
+                <TextView
+                    android:id="@+id/tvDetailAgeLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="ITEM AGE"
+                    android:textColor="#B292E7"
+                    android:textSize="11sp"
+                    android:letterSpacing="0.1"
+                    android:layout_marginTop="14dp"
+                    android:layout_marginBottom="4dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tvDetailAge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#E6DCF6"
+                    android:textSize="15sp"
+                    android:visibility="gone" />
+
+                <!-- Delivery area -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="DELIVERY AREA"
+                    android:textColor="#B292E7"
+                    android:textSize="11sp"
+                    android:letterSpacing="0.1"
+                    android:layout_marginTop="14dp"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/tvDetailArea"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#E6DCF6"
+                    android:textSize="15sp" />
+
+                <!-- Delivery options -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="DELIVERY OPTIONS"
+                    android:textColor="#B292E7"
+                    android:textSize="11sp"
+                    android:letterSpacing="0.1"
+                    android:layout_marginTop="14dp"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/tvDetailDelivery"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#E6DCF6"
+                    android:textSize="15sp" />
+
+                <!-- Posted by -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="POSTED BY"
+                    android:textColor="#B292E7"
+                    android:textSize="11sp"
+                    android:letterSpacing="0.1"
+                    android:layout_marginTop="14dp"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/tvDetailOwner"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#E6DCF6"
+                    android:textSize="15sp" />
+
+                <!-- Description -->
+                <TextView
+                    android:id="@+id/tvDetailDescLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="DESCRIPTION"
+                    android:textColor="#B292E7"
+                    android:textSize="11sp"
+                    android:letterSpacing="0.1"
+                    android:layout_marginTop="14dp"
+                    android:layout_marginBottom="4dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tvDetailDescription"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="#E6DCF6"
+                    android:textSize="15sp"
+                    android:lineSpacingMultiplier="1.4"
+                    android:visibility="gone" />
+
+                <!-- Chat button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnChatSeller"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="24dp"
+                    android:layout_marginBottom="8dp"
+                    android:text="💬  Chat with Seller"
+                    android:textColor="#E6DCF6"
+                    android:textSize="15sp"
+                    app:backgroundTint="#8361C5"
+                    app:cornerRadius="14dp"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</FrameLayout>

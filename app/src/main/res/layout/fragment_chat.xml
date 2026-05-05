@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#21103E">
+
+    <!-- Top bar (paddingTop set in code to match real status bar height) -->
+    <FrameLayout
+        android:id="@+id/chatTopBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#1A0B33"
+        android:paddingBottom="12dp"
+        android:paddingHorizontal="4dp"
+        android:elevation="4dp">
+
+        <!-- Name + ad title centered (tappable → opens ad detail) -->
+        <!-- Declared FIRST so the back button, drawn on top, receives taps first -->
+        <LinearLayout
+            android:id="@+id/llChatHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:paddingHorizontal="60dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless">
+
+            <TextView
+                android:id="@+id/tvChatOtherName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#E6DCF6"
+                android:textSize="17sp"
+                android:fontFamily="sans-serif-medium"
+                android:singleLine="true" />
+
+            <TextView
+                android:id="@+id/tvChatAdTitleBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#9F8FBC"
+                android:textSize="12sp"
+                android:singleLine="true" />
+        </LinearLayout>
+
+        <!-- Back button — declared LAST so it sits on top of the header and wins touches -->
+        <ImageView
+            android:id="@+id/btnChatBack"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="start|center_vertical"
+            android:src="@drawable/ic_back"
+            android:padding="12dp"
+            android:tint="#E6DCF6"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+
+    </FrameLayout>
+
+    <!-- Messages -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvMessages"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp"
+        android:scrollbarStyle="outsideOverlay" />
+
+    <!-- Input bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#1A0B33"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="10dp"
+        android:elevation="4dp">
+
+        <EditText
+            android:id="@+id/etMessage"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/auth_input_background"
+            android:textColor="#E6DCF6"
+            android:textColorHint="#9F8FBC"
+            android:hint="Message…"
+            android:textSize="15sp"
+            android:inputType="textMultiLine|textCapSentences"
+            android:maxLines="4"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="10dp"
+            android:imeOptions="actionSend" />
+
+        <ImageView
+            android:id="@+id/btnSharePhone"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="4dp"
+            android:src="@drawable/ic_phone"
+            android:tint="#9F8FBC"
+            android:padding="10dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+
+        <ImageView
+            android:id="@+id/btnSend"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="4dp"
+            android:src="@drawable/ic_send"
+            android:tint="#8361C5"
+            android:padding="8dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+
+    </LinearLayout>
+
+</LinearLayout>

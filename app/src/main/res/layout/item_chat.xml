@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="72dp"
+    android:background="@drawable/chat_item_bg"
+    android:foreground="?attr/selectableItemBackground"
+    android:layout_marginHorizontal="12dp"
+    android:layout_marginVertical="4dp"
+    android:paddingHorizontal="16dp">
+
+    <!-- Avatar circle -->
+    <TextView
+        android:id="@+id/tvChatInitial"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:gravity="center"
+        android:textColor="#E6DCF6"
+        android:textSize="20sp"
+        android:fontFamily="sans-serif-medium"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <!-- Name -->
+    <TextView
+        android:id="@+id/tvChatName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:textColor="#E6DCF6"
+        android:textSize="15sp"
+        android:fontFamily="sans-serif-medium"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:layout_marginStart="14dp"
+        app:layout_constraintStart_toEndOf="@id/tvChatInitial"
+        app:layout_constraintEnd_toStartOf="@id/tvChatTimestamp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/tvChatAdTitle"
+        android:layout_marginEnd="8dp" />
+
+    <!-- Ad title -->
+    <TextView
+        android:id="@+id/tvChatAdTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:textColor="#9F8FBC"
+        android:textSize="11sp"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:layout_marginStart="14dp"
+        app:layout_constraintStart_toEndOf="@id/tvChatInitial"
+        app:layout_constraintEnd_toStartOf="@id/tvChatTimestamp"
+        app:layout_constraintTop_toBottomOf="@id/tvChatName"
+        app:layout_constraintBottom_toTopOf="@id/tvChatLastMessage"
+        android:layout_marginEnd="8dp" />
+
+    <!-- Last message -->
+    <TextView
+        android:id="@+id/tvChatLastMessage"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:textColor="#9F8FBC"
+        android:textSize="13sp"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:layout_marginStart="14dp"
+        app:layout_constraintStart_toEndOf="@id/tvChatInitial"
+        app:layout_constraintEnd_toStartOf="@id/tvChatUnread"
+        app:layout_constraintTop_toBottomOf="@id/tvChatAdTitle"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:layout_marginEnd="8dp" />
+
+    <!-- Timestamp (top right) -->
+    <TextView
+        android:id="@+id/tvChatTimestamp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#9F8FBC"
+        android:textSize="11sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/tvChatUnread"
+        android:layout_marginBottom="4dp" />
+
+    <!-- Unread badge (bottom right) -->
+    <TextView
+        android:id="@+id/tvChatUnread"
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:gravity="center"
+        android:textColor="#E6DCF6"
+        android:textSize="10sp"
+        android:fontFamily="sans-serif-medium"
+        android:background="@drawable/unread_badge_bg"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvChatTimestamp"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <!-- Mute icon -->
+    <ImageView
+        android:id="@+id/ivChatMute"
+        android:layout_width="14dp"
+        android:layout_height="14dp"
+        android:src="@drawable/ic_mute"
+        android:tint="#9F8FBC"
+        android:visibility="gone"
+        app:layout_constraintEnd_toStartOf="@id/tvChatTimestamp"
+        app:layout_constraintTop_toTopOf="@id/tvChatTimestamp"
+        app:layout_constraintBottom_toBottomOf="@id/tvChatTimestamp"
+        android:layout_marginEnd="4dp" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
