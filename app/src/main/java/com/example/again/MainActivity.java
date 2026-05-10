@@ -11,10 +11,13 @@ import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.transition.ChangeBounds;
 import android.transition.TransitionManager;
 import android.view.GestureDetector;
 import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -25,6 +28,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -41,6 +45,9 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.checkbox.MaterialCheckBox;
+import com.google.android.material.chip.ChipGroup;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 public class MainActivity extends AppCompatActivity
         implements LoginFragment.LoginListener,
@@ -69,6 +76,13 @@ public class MainActivity extends AppCompatActivity
     private ConstraintLayout searchBarLayout;
     private EditText editTextSearch;
     private boolean searchExpanded = false;
+
+    // ── Active filter state ───────────────────────────────────────────────────
+    private double filterMaxPrice       = 0;   // 0 = no limit
+    private String filterArea           = "";
+    private boolean filterPickup        = true;
+    private boolean filterShipping      = true;
+    private java.util.List<String> filterConditions = new java.util.ArrayList<>(); // empty = any
 
     private LeftFragment  leftRef;
     private HomeFragment  homeRef;
@@ -206,6 +220,21 @@ public class MainActivity extends AppCompatActivity
         // Search bar
         searchBarLayout = findViewById(R.id.search_bar);
         editTextSearch  = findViewById(R.id.editTextSearch);
+
+        // Filter icon → open filter dialog
+        ImageView btnFilter = findViewById(R.id.btnFilterInside);
+        if (btnFilter != null) {
+            btnFilter.setOnClickListener(v -> openFilterDialog());
+        }
+
+        // Live search as user types
+        editTextSearch.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
+            @Override public void onTextChanged(CharSequence s, int st, int b, int c) {}
+            @Override public void afterTextChanged(Editable s) {
+                goToHomeAndSearch();
+            }
+        });
 
         editTextSearch.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_DONE) {
@@ -618,6 +647,81 @@ public class MainActivity extends AppCompatActivity
             });
             animator.start();
         });
+    }
+
+    // ── Search / Filter ───────────────────────────────────────────────────────
+
+    /** Switch to the home tab if needed, then apply current query + filters. */
+    private void goToHomeAndSearch() {
+        if (currentTab != 1) {
+            homeRef = new HomeFragment();
+            switchTab(homeRef, 1, R.anim.slide_in_right, R.anim.slide_out_left);
+            // applySearch will be called from HomeFragment.onResume → reapplySearch()
+        } else {
+            reapplySearch();
+        }
+    }
+
+    /** Called by HomeFragment.onResume so filters persist after a tab switch. */
+    public void reapplySearch() {
+        if (homeRef == null) return;
+        String query = editTextSearch != null ? editTextSearch.getText().toString() : "";
+        homeRef.applySearch(query, filterMaxPrice, filterArea,
+                filterPickup, filterShipping, filterConditions);
+    }
+
+    private void openFilterDialog() {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_filter, null);
+
+        EditText etPrice    = dialogView.findViewById(R.id.etFilterPrice);
+        EditText etArea     = dialogView.findViewById(R.id.etFilterArea);
+        MaterialCheckBox cbPickup   = dialogView.findViewById(R.id.cbFilterPickup);
+        MaterialCheckBox cbShipping = dialogView.findViewById(R.id.cbFilterShipping);
+        ChipGroup conditionGroup    = dialogView.findViewById(R.id.filterConditionGroup);
+
+        // Pre-fill with current filter values
+        if (filterMaxPrice > 0) etPrice.setText(String.valueOf((int) filterMaxPrice));
+        etArea.setText(filterArea);
+        cbPickup.setChecked(filterPickup);
+        cbShipping.setChecked(filterShipping);
+
+        // Pre-check whichever conditions are currently active
+        if (filterConditions.contains("Second-hand")) conditionGroup.check(R.id.chipConditionSecondHand);
+        if (filterConditions.contains("As new"))      conditionGroup.check(R.id.chipConditionAsNew);
+        if (filterConditions.contains("Unopened"))    conditionGroup.check(R.id.chipConditionUnopened);
+        if (filterConditions.contains("Other"))       conditionGroup.check(R.id.chipConditionOther);
+
+        new MaterialAlertDialogBuilder(this, R.style.PurpleAlertDialog)
+                .setTitle("Filter Ads")
+                .setView(dialogView)
+                .setPositiveButton("Apply", (d, w) -> {
+                    String priceStr = etPrice.getText().toString().trim();
+                    filterMaxPrice  = priceStr.isEmpty() ? 0 : Double.parseDouble(priceStr);
+                    filterArea      = etArea.getText().toString().trim();
+                    filterPickup    = cbPickup.isChecked();
+                    filterShipping  = cbShipping.isChecked();
+
+                    filterConditions = new java.util.ArrayList<>();
+                    java.util.List<Integer> checked = conditionGroup.getCheckedChipIds();
+                    for (int id : checked) {
+                        if (id == R.id.chipConditionSecondHand) filterConditions.add("Second-hand");
+                        else if (id == R.id.chipConditionAsNew) filterConditions.add("As new");
+                        else if (id == R.id.chipConditionUnopened) filterConditions.add("Unopened");
+                        else if (id == R.id.chipConditionOther) filterConditions.add("Other");
+                    }
+
+                    goToHomeAndSearch();
+                })
+                .setNegativeButton("Reset", (d, w) -> {
+                    filterMaxPrice   = 0;
+                    filterArea       = "";
+                    filterPickup     = true;
+                    filterShipping   = true;
+                    filterConditions = new java.util.ArrayList<>();
+                    goToHomeAndSearch();
+                })
+                .setNeutralButton("Cancel", null)
+                .show();
     }
 
     // ── Misc ──────────────────────────────────────────────────────────────────

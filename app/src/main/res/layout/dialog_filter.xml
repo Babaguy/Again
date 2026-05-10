@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <!-- Max price -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="MAX PRICE (₪)"
+            android:textColor="#B292E7"
+            android:textSize="11sp"
+            android:letterSpacing="0.1"
+            android:layout_marginBottom="6dp" />
+
+        <EditText
+            android:id="@+id/etFilterPrice"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@drawable/auth_input_background"
+            android:hint="Any price"
+            android:textColorHint="#9F8FBC"
+            android:textColor="#E6DCF6"
+            android:inputType="numberDecimal"
+            android:paddingHorizontal="14dp"
+            android:textSize="15sp" />
+
+        <!-- Area -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="AREA"
+            android:textColor="#B292E7"
+            android:textSize="11sp"
+            android:letterSpacing="0.1"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="6dp" />
+
+        <EditText
+            android:id="@+id/etFilterArea"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@drawable/auth_input_background"
+            android:hint="Any area"
+            android:textColorHint="#9F8FBC"
+            android:textColor="#E6DCF6"
+            android:inputType="text"
+            android:paddingHorizontal="14dp"
+            android:textSize="15sp" />
+
+        <!-- Delivery options -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="DELIVERY OPTIONS"
+            android:textColor="#B292E7"
+            android:textSize="11sp"
+            android:letterSpacing="0.1"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="6dp" />
+
+        <com.google.android.material.checkbox.MaterialCheckBox
+            android:id="@+id/cbFilterPickup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Pickup"
+            android:textColor="#E6DCF6"
+            android:textSize="15sp"
+            android:checked="true"
+            app:buttonTint="#8361C5" />
+
+        <com.google.android.material.checkbox.MaterialCheckBox
+            android:id="@+id/cbFilterShipping"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Shipping"
+            android:textColor="#E6DCF6"
+            android:textSize="15sp"
+            android:checked="true"
+            app:buttonTint="#8361C5" />
+
+        <!-- Condition -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="CONDITION"
+            android:textColor="#B292E7"
+            android:textSize="11sp"
+            android:letterSpacing="0.1"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="6dp" />
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/filterConditionGroup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:singleSelection="false"
+            app:selectionRequired="false">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipConditionSecondHand"
+                style="@style/Widget.MaterialComponents.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Second-hand"
+                android:textColor="#E6DCF6"
+                app:chipBackgroundColor="#3D2270"
+                app:checkedIconTint="#E6DCF6" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipConditionAsNew"
+                style="@style/Widget.MaterialComponents.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="As new"
+                android:textColor="#E6DCF6"
+                app:chipBackgroundColor="#3D2270"
+                app:checkedIconTint="#E6DCF6" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipConditionUnopened"
+                style="@style/Widget.MaterialComponents.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Unopened"
+                android:textColor="#E6DCF6"
+                app:chipBackgroundColor="#3D2270"
+                app:checkedIconTint="#E6DCF6" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipConditionOther"
+                style="@style/Widget.MaterialComponents.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Other"
+                android:textColor="#E6DCF6"
+                app:chipBackgroundColor="#3D2270"
+                app:checkedIconTint="#E6DCF6" />
+
+        </com.google.android.material.chip.ChipGroup>
+
+    </LinearLayout>
+</ScrollView>

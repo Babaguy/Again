@@ -84,4 +84,33 @@ public class UserPreferences {
                 .apply();
         return true;
     }
+
+    /**
+     * Change the password for the account identified by email.
+     * Also refreshes the logged-in session string.
+     * Returns false if the account was not found.
+     */
+    public boolean changePassword(String email, String newPassword) {
+        Set<String> users = new HashSet<>(prefs.getStringSet(KEY_USERS, new HashSet<>()));
+        String oldEntry = null;
+        String username = "", phone = "";
+        for (String entry : users) {
+            String[] parts = entry.split("\\|", -1);
+            if (parts.length >= 3 && parts[1].equalsIgnoreCase(email)) {
+                oldEntry = entry;
+                username = parts[0];
+                phone    = parts.length >= 4 ? parts[3] : "";
+                break;
+            }
+        }
+        if (oldEntry == null) return false;
+        users.remove(oldEntry);
+        String newEntry = username + "|" + email + "|" + newPassword + "|" + phone;
+        users.add(newEntry);
+        prefs.edit()
+                .putStringSet(KEY_USERS, users)
+                .putString(KEY_LOGGED_IN, newEntry)
+                .apply();
+        return true;
+    }
 }

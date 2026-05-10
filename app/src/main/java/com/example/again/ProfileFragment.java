@@ -3,12 +3,16 @@ package com.example.again;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
+import android.text.InputType;
+import android.text.method.HideReturnsTransformationMethod;
+import android.text.method.PasswordTransformationMethod;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -18,6 +22,7 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 public class ProfileFragment extends Fragment {
 
@@ -102,6 +107,28 @@ public class ProfileFragment extends Fragment {
             if (listener != null) listener.onProfileClose();
         });
 
+        // Current password display + reveal toggle
+        EditText etCurrentPasswordDisplay = view.findViewById(R.id.etCurrentPasswordDisplay);
+        ImageView btnRevealPassword = view.findViewById(R.id.btnRevealPassword);
+        if (user != null) {
+            etCurrentPasswordDisplay.setText(user[2]); // password is index 2
+        }
+        final boolean[] passwordVisible = {false};
+        btnRevealPassword.setOnClickListener(v -> {
+            passwordVisible[0] = !passwordVisible[0];
+            if (passwordVisible[0]) {
+                etCurrentPasswordDisplay.setTransformationMethod(HideReturnsTransformationMethod.getInstance());
+                btnRevealPassword.setImageResource(R.drawable.ic_eye_off);
+            } else {
+                etCurrentPasswordDisplay.setTransformationMethod(PasswordTransformationMethod.getInstance());
+                btnRevealPassword.setImageResource(R.drawable.ic_eye_open);
+            }
+        });
+
+        // Change Password
+        MaterialButton btnChangePassword = view.findViewById(R.id.btnChangePassword);
+        btnChangePassword.setOnClickListener(v -> showChangePasswordDialog(userPrefs, etCurrentPasswordDisplay));
+
         // Logout
         btnLogout.setOnClickListener(v -> {
             userPrefs.logout();
@@ -177,6 +204,78 @@ public class ProfileFragment extends Fragment {
                     requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
             if (imm != null) imm.hideSoftInputFromWindow(focused.getWindowToken(), 0);
         }
+    }
+
+    // ── Change Password ───────────────────────────────────────────────────────
+
+    private void showChangePasswordDialog(UserPreferences userPrefs,
+                                          EditText etCurrentPasswordDisplay) {
+        View dialogView = LayoutInflater.from(requireContext())
+                .inflate(R.layout.dialog_change_password, null);
+
+        EditText etNew     = dialogView.findViewById(R.id.etNewPassword);
+        EditText etConfirm = dialogView.findViewById(R.id.etConfirmPassword);
+        ImageView toggleNew     = dialogView.findViewById(R.id.btnToggleNew);
+        ImageView toggleConfirm = dialogView.findViewById(R.id.btnToggleConfirm);
+
+        // Eye toggles inside dialog
+        final boolean[] newVisible     = {false};
+        final boolean[] confirmVisible = {false};
+
+        toggleNew.setOnClickListener(v -> {
+            newVisible[0] = !newVisible[0];
+            etNew.setTransformationMethod(newVisible[0]
+                    ? HideReturnsTransformationMethod.getInstance()
+                    : PasswordTransformationMethod.getInstance());
+            etNew.setSelection(etNew.getText().length());
+            toggleNew.setImageResource(newVisible[0]
+                    ? R.drawable.ic_eye_off : R.drawable.ic_eye_open);
+        });
+
+        toggleConfirm.setOnClickListener(v -> {
+            confirmVisible[0] = !confirmVisible[0];
+            etConfirm.setTransformationMethod(confirmVisible[0]
+                    ? HideReturnsTransformationMethod.getInstance()
+                    : PasswordTransformationMethod.getInstance());
+            etConfirm.setSelection(etConfirm.getText().length());
+            toggleConfirm.setImageResource(confirmVisible[0]
+                    ? R.drawable.ic_eye_off : R.drawable.ic_eye_open);
+        });
+
+        new MaterialAlertDialogBuilder(requireContext(), R.style.PurpleAlertDialog)
+                .setTitle("Change Password")
+                .setView(dialogView)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    String newPass     = etNew.getText().toString().trim();
+                    String confirmPass = etConfirm.getText().toString().trim();
+
+                    if (newPass.isEmpty()) {
+                        Toast.makeText(getContext(), "Password cannot be empty", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    if (!newPass.equals(confirmPass)) {
+                        Toast.makeText(getContext(), "Passwords do not match", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    boolean ok = userPrefs.changePassword(currentEmail, newPass);
+                    if (ok) {
+                        // Refresh the password display on the profile page
+                        etCurrentPasswordDisplay.setText(newPass);
+                        etCurrentPasswordDisplay.setTransformationMethod(
+                                PasswordTransformationMethod.getInstance());
+                    }
+                    Toast.makeText(getContext(),
+                            ok ? "Password updated!" : "Could not update password",
+                            Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private int dpToPx(int dp) {
+        float density = requireContext().getResources().getDisplayMetrics().density;
+        return Math.round(dp * density);
     }
 
     // ── Save ──────────────────────────────────────────────────────────────────

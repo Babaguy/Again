@@ -259,19 +259,43 @@
                     android:lineSpacingMultiplier="1.4"
                     android:visibility="gone" />
 
-                <!-- Chat button -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnChatSeller"
+                <!-- Chat + Close row -->
+                <LinearLayout
+                    android:id="@+id/llChatRow"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
                     android:layout_marginTop="24dp"
                     android:layout_marginBottom="8dp"
-                    android:text="💬  Chat with Seller"
-                    android:textColor="#E6DCF6"
-                    android:textSize="15sp"
-                    app:backgroundTint="#8361C5"
-                    app:cornerRadius="14dp"
-                    android:visibility="gone" />
+                    android:visibility="gone">
+
+                    <!-- Close / slide-down button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnCloseAd"
+                        android:layout_width="52dp"
+                        android:layout_height="52dp"
+                        android:layout_marginEnd="8dp"
+                        app:icon="@drawable/ic_arrow_down"
+                        app:iconSize="28dp"
+                        app:iconGravity="textStart"
+                        app:iconPadding="0dp"
+                        app:backgroundTint="#8361C5"
+                        app:cornerRadius="14dp" />
+
+                    <!-- Chat button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnChatSeller"
+                        android:layout_width="0dp"
+                        android:layout_height="52dp"
+                        android:layout_weight="1"
+                        android:text="💬  Chat with Seller"
+                        android:textColor="#2D1A5C"
+                        android:textSize="15sp"
+                        app:backgroundTint="#8361C5"
+                        app:cornerRadius="14dp"
+                        android:visibility="gone" />
+
+                </LinearLayout>
 
             </LinearLayout>
         </LinearLayout>

@@ -37,9 +37,12 @@
         app:layout_constraintEnd_toStartOf="@+id/btnAcc">
 
         <ImageView
+            android:id="@+id/btnSearchIcon"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@drawable/ic_search"
+            android:clickable="false"
+            android:focusable="false"
             app:tint="#B292E7" />
 
         <EditText

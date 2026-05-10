@@ -146,20 +146,24 @@ public class AdDetailFragment extends DialogFragment {
             tvDesc.setText(ad.getDescription());
         }
 
-        // ── Chat button ───────────────────────────────────────────────────────
+        // ── Chat + Close row ──────────────────────────────────────────────────
+        View llChatRow = root.findViewById(R.id.llChatRow);
         MaterialButton btnChat = root.findViewById(R.id.btnChatSeller);
         UserPreferences up = new UserPreferences(requireContext());
 
+        // Always show the row (close button is always useful);
+        // hide chat button if the viewer is the owner or not logged in.
+        llChatRow.setVisibility(View.VISIBLE);
         if (up.isLoggedIn()) {
             String[] me = up.getLoggedInUser();
             String myEmail = me != null ? me[1] : "";
-            // Don't show chat button to the ad's own owner
             if (!myEmail.equalsIgnoreCase(ad.getOwnerEmail())) {
                 btnChat.setVisibility(View.VISIBLE);
                 btnChat.setOnClickListener(v -> startChat(ad, myEmail, me[0]));
             }
         }
-        // If not logged in: chat button stays GONE
+
+        root.findViewById(R.id.btnCloseAd).setOnClickListener(v -> dismiss());
 
         // ── Dismiss on dim tap ────────────────────────────────────────────────
         View dimBg = root.findViewById(R.id.dimBackground);
