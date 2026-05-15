@@ -217,7 +217,6 @@
         android:layout_width="match_parent"
         android:layout_height="56dp"
         android:layout_marginHorizontal="28dp"
-        android:layout_marginBottom="48dp"
         android:text="Log Out"
         android:textColor="#A07EE2"
         android:textSize="16sp"
@@ -225,5 +224,22 @@
         app:cornerRadius="14dp"
         app:strokeColor="#8361C5"
         app:strokeWidth="1.5dp" />
+
+    <!-- Delete Account -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnDeleteAccount"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginHorizontal="28dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="48dp"
+        android:text="Delete Account"
+        android:textColor="#E57373"
+        android:textSize="14sp"
+        app:cornerRadius="14dp"
+        app:strokeColor="#E57373"
+        app:strokeWidth="1dp"
+        app:rippleColor="#E57373" />
 
 </LinearLayout>

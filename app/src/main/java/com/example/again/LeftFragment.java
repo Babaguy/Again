@@ -56,27 +56,25 @@ public class LeftFragment extends Fragment {
         String[] user = up.getLoggedInUser();
         String email = user != null ? user[1] : "";
 
-        AdPreferences adPrefs = new AdPreferences(requireContext());
-        List<Ad> myAds = adPrefs.getAdsByOwner(email);
-
-        if (myAds.isEmpty()) {
-            rvMyAds.setVisibility(View.GONE);
-            llSignInRequired.setVisibility(View.GONE);
-            llNoAds.setVisibility(View.VISIBLE);
-        } else {
-            llSignInRequired.setVisibility(View.GONE);
-            llNoAds.setVisibility(View.GONE);
-            rvMyAds.setVisibility(View.VISIBLE);
-            rvMyAds.setAdapter(new AdAdapter(
-                    myAds,
-                    adPrefs,
-                    // Tap → detail popup
-                    ad -> AdDetailFragment.newInstance(ad)
-                            .show(getParentFragmentManager(), "ad_detail"),
-                    // Long-press → edit / delete menu
-                    ad -> showEditDeleteDialog(ad)
-            ));
-        }
+        new AdPreferences(requireContext()).getAdsByOwner(email, myAds -> {
+            if (!isAdded() || getContext() == null) return;
+            if (myAds.isEmpty()) {
+                rvMyAds.setVisibility(View.GONE);
+                llSignInRequired.setVisibility(View.GONE);
+                llNoAds.setVisibility(View.VISIBLE);
+            } else {
+                llSignInRequired.setVisibility(View.GONE);
+                llNoAds.setVisibility(View.GONE);
+                rvMyAds.setVisibility(View.VISIBLE);
+                rvMyAds.setAdapter(new AdAdapter(
+                        myAds,
+                        null,
+                        ad -> AdDetailFragment.newInstance(ad)
+                                .show(getParentFragmentManager(), "ad_detail"),
+                        ad -> showEditDeleteDialog(ad)
+                ));
+            }
+        });
     }
 
     private void showEditDeleteDialog(Ad ad) {
@@ -110,7 +108,7 @@ public class LeftFragment extends Fragment {
                 .setTitle("Mark as available?")
                 .setMessage("\"" + ad.getProductName() + "\" will be listed again and all interested buyers will be notified.")
                 .setPositiveButton("Mark as Available", (d, w) -> {
-                    new AdPreferences(requireContext()).unmarkSold(ad.getId());
+                    new AdPreferences(requireContext()).unmarkSold(ad.getId(), (ok, err) -> {});
 
                     UserPreferences up = new UserPreferences(requireContext());
                     String[] user = up.getLoggedInUser();
@@ -130,7 +128,7 @@ public class LeftFragment extends Fragment {
                 .setTitle("Mark as sold?")
                 .setMessage("\"" + ad.getProductName() + "\" will be marked as sold and all buyers will be notified.")
                 .setPositiveButton("Mark as Sold", (d, w) -> {
-                    new AdPreferences(requireContext()).markSold(ad.getId());
+                    new AdPreferences(requireContext()).markSold(ad.getId(), (ok, err) -> {});
 
                     // Notify all open chats about this ad
                     UserPreferences up = new UserPreferences(requireContext());
@@ -151,8 +149,15 @@ public class LeftFragment extends Fragment {
                 .setTitle("Remove ad?")
                 .setMessage("\"" + ad.getProductName() + "\" will be permanently removed.")
                 .setPositiveButton("Remove", (d, w) -> {
-                    new AdPreferences(requireContext()).deleteAd(ad.getId());
-                    refresh();
+                    // Notify all chat participants before deleting the ad
+                    UserPreferences up = new UserPreferences(requireContext());
+                    String[] user = up.getLoggedInUser();
+                    if (user != null) {
+                        new ChatPreferences(requireContext())
+                                .sendAdDeletedNotification(ad.getId(), user[1], ad.getProductName());
+                    }
+                    new AdPreferences(requireContext()).deleteAd(ad.getId(),
+                            (ok, err) -> { if (isAdded()) refresh(); });
                 })
                 .setNegativeButton("Cancel", null)
                 .show();

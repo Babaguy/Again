@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "354755154637",
+    "project_id": "again-ea41c",
+    "storage_bucket": "again-ea41c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:354755154637:android:bf1ba044cce6093c0f0f84",
+        "android_client_info": {
+          "package_name": "com.example.again"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCTwYBQ76PAKeSYY2hrq94Y20xdfW6fgc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

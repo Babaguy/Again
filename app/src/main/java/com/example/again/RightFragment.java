@@ -115,44 +115,54 @@ public class RightFragment extends Fragment {
 
         ChatPreferences chatPrefs = new ChatPreferences(requireContext());
 
-        // Filter by tab: Buying = I'm the buyer, Selling = I'm the seller
-        List<Chat> active   = filter(chatPrefs.getActiveChatsForUser(myEmail),   myEmail);
-        List<Chat> archived = filter(chatPrefs.getArchivedChatsForUser(myEmail), myEmail);
+        // Load active chats first, then archived — both async
+        chatPrefs.getActiveChatsForUser(myEmail, allActive -> {
+            if (!isAdded() || getContext() == null) return;
+            List<Chat> active = filter(allActive, myEmail);
 
-        if (active.isEmpty() && archived.isEmpty()) {
-            rvChats.setVisibility(View.GONE);
-            tvArchivedToggle.setVisibility(View.GONE);
-            rvArchivedChats.setVisibility(View.GONE);
-            llNoChats.setVisibility(View.VISIBLE);
-            return;
-        }
+            chatPrefs.getArchivedChatsForUser(myEmail, allArchived -> {
+                if (!isAdded() || getContext() == null) return;
+                List<Chat> archived = filter(allArchived, myEmail);
 
-        llNoChats.setVisibility(View.GONE);
-        rvChats.setVisibility(View.VISIBLE);
+                requireActivity().runOnUiThread(() -> {
+                    if (!isAdded()) return;
 
-        rvChats.setAdapter(new ChatListAdapter(active, myEmail, chatPrefs,
-                chat -> openChat(chat, myEmail),
-                chat -> showChatOptions(chat, myEmail, chatPrefs)));
+                    if (active.isEmpty() && archived.isEmpty()) {
+                        rvChats.setVisibility(View.GONE);
+                        tvArchivedToggle.setVisibility(View.GONE);
+                        rvArchivedChats.setVisibility(View.GONE);
+                        llNoChats.setVisibility(View.VISIBLE);
+                        return;
+                    }
 
-        // Archived section
-        if (!archived.isEmpty()) {
-            int count = archived.size();
-            tvArchivedToggle.setVisibility(View.VISIBLE);
-            tvArchivedToggle.setText(archivedExpanded
-                    ? "▲  Hide archived (" + count + ")"
-                    : "▼  Archived (" + count + ")");
-            if (archivedExpanded) {
-                rvArchivedChats.setVisibility(View.VISIBLE);
-                rvArchivedChats.setAdapter(new ChatListAdapter(archived, myEmail, chatPrefs,
-                        chat -> openChat(chat, myEmail),
-                        chat -> showChatOptions(chat, myEmail, chatPrefs)));
-            } else {
-                rvArchivedChats.setVisibility(View.GONE);
-            }
-        } else {
-            tvArchivedToggle.setVisibility(View.GONE);
-            rvArchivedChats.setVisibility(View.GONE);
-        }
+                    llNoChats.setVisibility(View.GONE);
+                    rvChats.setVisibility(View.VISIBLE);
+
+                    rvChats.setAdapter(new ChatListAdapter(active, myEmail, chatPrefs,
+                            chat -> openChat(chat, myEmail),
+                            chat -> showChatOptions(chat, myEmail, chatPrefs)));
+
+                    if (!archived.isEmpty()) {
+                        int count = archived.size();
+                        tvArchivedToggle.setVisibility(View.VISIBLE);
+                        tvArchivedToggle.setText(archivedExpanded
+                                ? "▲  Hide archived (" + count + ")"
+                                : "▼  Archived (" + count + ")");
+                        if (archivedExpanded) {
+                            rvArchivedChats.setVisibility(View.VISIBLE);
+                            rvArchivedChats.setAdapter(new ChatListAdapter(archived, myEmail, chatPrefs,
+                                    chat -> openChat(chat, myEmail),
+                                    chat -> showChatOptions(chat, myEmail, chatPrefs)));
+                        } else {
+                            rvArchivedChats.setVisibility(View.GONE);
+                        }
+                    } else {
+                        tvArchivedToggle.setVisibility(View.GONE);
+                        rvArchivedChats.setVisibility(View.GONE);
+                    }
+                });
+            });
+        });
     }
 
     /** Keep only chats where the current user is buyer (Buying tab) or seller (Selling tab). */

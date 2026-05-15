@@ -26,7 +26,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     private static final int VT_SYSTEM       = 3;
     private static final int VT_DATE         = 4;
 
-    private final List<Message>             messages;
+    private List<Message>                    messages;
     private final String                    myEmail;
     private final OnMessageLongClickListener longClickListener;
 
@@ -35,6 +35,12 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         this.messages          = messages;
         this.myEmail           = myEmail;
         this.longClickListener = longClick;
+    }
+
+    /** Replace the message list (called by the real-time Firestore listener). */
+    public void updateMessages(List<Message> newMessages) {
+        this.messages = newMessages;
+        notifyDataSetChanged();
     }
 
     @Override

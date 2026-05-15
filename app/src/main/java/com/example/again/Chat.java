@@ -20,8 +20,9 @@ public class Chat {
     private String adId;
     private String adTitle;
     private double adPrice;
-    private String lastMessageText;
-    private long   lastMessageTimestamp;
+    private String  lastMessageText;
+    private long    lastMessageTimestamp;
+    private boolean disabled;
 
     public Chat() {}
 
@@ -54,8 +55,10 @@ public class Chat {
     public String getLastMessageText()   { return lastMessageText; }
     public long   getLastMessageTimestamp() { return lastMessageTimestamp; }
 
+    public boolean isDisabled()                     { return disabled; }
+    public void setDisabled(boolean d)             { disabled = d; }
     public void setAdTitle(String t)               { adTitle = t != null ? t : ""; }
-    public void setLastMessageText(String t)      { lastMessageText = t != null ? t : ""; }
+    public void setLastMessageText(String t)       { lastMessageText = t != null ? t : ""; }
     public void setLastMessageTimestamp(long ts)   { lastMessageTimestamp = ts; }
 
     /** The name of the other participant (not myEmail). */

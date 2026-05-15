@@ -73,8 +73,23 @@
         android:paddingVertical="8dp"
         android:scrollbarStyle="outsideOverlay" />
 
+    <!-- Disabled banner (shown instead of input bar when one user deleted their account) -->
+    <TextView
+        android:id="@+id/tvChatDisabled"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#1A0B33"
+        android:text="This conversation has ended"
+        android:textColor="#9F8FBC"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:paddingVertical="16dp"
+        android:elevation="4dp"
+        android:visibility="gone" />
+
     <!-- Input bar -->
     <LinearLayout
+        android:id="@+id/inputBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="#1A0B33"

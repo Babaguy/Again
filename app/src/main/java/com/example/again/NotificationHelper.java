@@ -13,8 +13,6 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 
-import java.util.List;
-
 public class NotificationHelper {
 
     public static final String CHANNEL_ID   = "again_messages";
@@ -71,36 +69,40 @@ public class NotificationHelper {
     public static void checkAndNotifyUnread(Context context, String myEmail) {
         if (myEmail == null || myEmail.isEmpty()) return;
         ChatPreferences chatPrefs = new ChatPreferences(context);
-        List<Chat> chats = chatPrefs.getChatsForUser(myEmail);
-        for (Chat chat : chats) {
-            if (chatPrefs.isMuted(chat.getChatId(), myEmail)) continue;
 
-            long lastNotified = chatPrefs.getLastNotifiedTimestamp(chat.getChatId(), myEmail);
+        chatPrefs.getChatsForUser(myEmail, chats -> {
+            for (Chat chat : chats) {
+                if (chatPrefs.isMuted(chat.getChatId(), myEmail)) continue;
+                final long lastNotified =
+                        chatPrefs.getLastNotifiedTimestamp(chat.getChatId(), myEmail);
 
-            // Find messages from others, after lastNotified, not yet seen
-            List<Message> messages = chatPrefs.getMessages(chat.getChatId());
-            int newCount = 0;
-            long latestTs = lastNotified;
-            String latestPreview = "";
-            for (Message m : messages) {
-                if (!m.getSenderEmail().equalsIgnoreCase(myEmail)
-                        && m.getTimestamp() > lastNotified
-                        && !m.isDeleted()) {
-                    newCount++;
-                    latestTs = Math.max(latestTs, m.getTimestamp());
-                    latestPreview = Message.TYPE_PRODUCT_CARD.equals(m.getType())
-                            ? "📦 " + chat.getAdTitle() : m.getText();
-                }
+                chatPrefs.getMessages(chat.getChatId(), messages -> {
+                    int    newCount     = 0;
+                    long   latestTs     = lastNotified;
+                    String latestPreview = "";
+
+                    for (Message m : messages) {
+                        if (!m.getSenderEmail().equalsIgnoreCase(myEmail)
+                                && m.getTimestamp() > lastNotified
+                                && !m.isDeleted()) {
+                            newCount++;
+                            latestTs = Math.max(latestTs, m.getTimestamp());
+                            latestPreview = Message.TYPE_PRODUCT_CARD.equals(m.getType())
+                                    ? "📦 " + chat.getAdTitle() : m.getText();
+                        }
+                    }
+
+                    if (newCount > 0) {
+                        String preview = newCount == 1
+                                ? latestPreview
+                                : newCount + " new messages";
+                        showMessageNotification(context, chat.getChatId(),
+                                chat.getOtherUserName(myEmail), preview);
+                        chatPrefs.setLastNotifiedTimestamp(
+                                chat.getChatId(), myEmail, latestTs);
+                    }
+                });
             }
-
-            if (newCount > 0) {
-                String preview = newCount == 1
-                        ? latestPreview
-                        : newCount + " new messages";
-                showMessageNotification(context, chat.getChatId(),
-                        chat.getOtherUserName(myEmail), preview);
-                chatPrefs.setLastNotifiedTimestamp(chat.getChatId(), myEmail, latestTs);
-            }
-        }
+        });
     }
 }

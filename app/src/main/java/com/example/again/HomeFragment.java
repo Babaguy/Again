@@ -11,15 +11,17 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Collection;
+import java.util.List;
 
 public class HomeFragment extends Fragment {
 
-    private RecyclerView rvAllAds;
-    private TextView tvNoAdsYet;
+    private RecyclerView        rvAllAds;
+    private TextView            tvNoAdsYet;
+    private SwipeRefreshLayout  swipeRefresh;
 
     @Nullable
     @Override
@@ -32,17 +34,33 @@ public class HomeFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View root, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(root, savedInstanceState);
-        rvAllAds   = root.findViewById(R.id.rvAllAds);
-        tvNoAdsYet = root.findViewById(R.id.tvNoAdsYet);
+        rvAllAds     = root.findViewById(R.id.rvAllAds);
+        tvNoAdsYet   = root.findViewById(R.id.tvNoAdsYet);
+        swipeRefresh = root.findViewById(R.id.swipeRefresh);
         rvAllAds.setLayoutManager(new GridLayoutManager(getContext(), 2));
+
+        // Style the spinner to match the app's purple theme
+        swipeRefresh.setColorSchemeColors(0xFF8361C5);
+        swipeRefresh.setProgressBackgroundColorSchemeColor(0xFF2D1A5C);
+
+        swipeRefresh.setOnRefreshListener(() -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).reapplySearch();
+            } else {
+                refresh();
+            }
+        });
+
         refresh();
     }
 
-    /** Show all ads with no filters (default state). */
+    /** Show all ads with no filters. */
     public void refresh() {
         if (!isAdded() || getContext() == null) return;
-        AdPreferences adPrefs = new AdPreferences(requireContext());
-        showAds(adPrefs.getAllAds(), adPrefs);
+        new AdPreferences(requireContext()).getAllAds(ads -> {
+            if (!isAdded() || getContext() == null) return;
+            showAds(ads, "No ads posted yet");
+        });
     }
 
     /**
@@ -54,49 +72,40 @@ public class HomeFragment extends Fragment {
                             Collection<String> conditions) {
         if (!isAdded() || getContext() == null) return;
 
-        AdPreferences adPrefs = new AdPreferences(requireContext());
-        List<Ad> all = adPrefs.getAllAds();
-        List<Ad> result = new ArrayList<>();
+        new AdPreferences(requireContext()).getAllAds(all -> {
+            if (!isAdded() || getContext() == null) return;
 
-        String q = query == null ? "" : query.toLowerCase().trim();
+            List<Ad> result = new ArrayList<>();
+            String q = query == null ? "" : query.toLowerCase().trim();
 
-        for (Ad ad : all) {
-            // Text search — name or description
-            if (!q.isEmpty()
-                    && !ad.getProductName().toLowerCase().contains(q)
-                    && !ad.getDescription().toLowerCase().contains(q)) continue;
+            for (Ad ad : all) {
+                if (!q.isEmpty()
+                        && !ad.getProductName().toLowerCase().contains(q)
+                        && !ad.getDescription().toLowerCase().contains(q)) continue;
 
-            // Max price
-            if (maxPrice > 0 && ad.getPrice() > maxPrice) continue;
+                if (maxPrice > 0 && ad.getPrice() > maxPrice) continue;
 
-            // Area (partial match)
-            if (!area.trim().isEmpty()
-                    && !ad.getDeliveryArea().toLowerCase()
-                           .contains(area.trim().toLowerCase())) continue;
+                if (!area.trim().isEmpty()
+                        && !ad.getDeliveryArea().toLowerCase()
+                               .contains(area.trim().toLowerCase())) continue;
 
-            // Delivery options
-            if (pickup && !shipping && !ad.isPickup()) continue;
-            if (!pickup && shipping && !ad.isShipping()) continue;
-            if (!pickup && !shipping) continue; // nothing checked → skip all
+                if (pickup && !shipping && !ad.isPickup()) continue;
+                if (!pickup && shipping && !ad.isShipping()) continue;
+                if (!pickup && !shipping) continue;
 
-            // Condition — empty list means "any"
-            if (conditions != null && !conditions.isEmpty()
-                    && !conditions.contains(ad.getCondition())) continue;
+                if (conditions != null && !conditions.isEmpty()
+                        && !conditions.contains(ad.getCondition())) continue;
 
-            result.add(ad);
-        }
+                result.add(ad);
+            }
 
-        // If the full list is also empty, keep the original "no ads yet" message.
-        // Only show "no ads found" when there ARE ads but none matched the search.
-        showAds(result, adPrefs, all.isEmpty() ? "No ads posted yet" : "No ads found");
+            showAds(result, all.isEmpty() ? "No ads posted yet" : "No ads found");
+        });
     }
 
-    private void showAds(List<Ad> ads, AdPreferences adPrefs) {
-        showAds(ads, adPrefs, "No ads posted yet");
-    }
-
-    private void showAds(List<Ad> ads, AdPreferences adPrefs, String emptyMessage) {
+    private void showAds(List<Ad> ads, String emptyMessage) {
         if (!isAdded() || getContext() == null) return;
+        if (swipeRefresh != null) swipeRefresh.setRefreshing(false);
         if (ads.isEmpty()) {
             rvAllAds.setVisibility(View.GONE);
             tvNoAdsYet.setText(emptyMessage);
@@ -104,7 +113,7 @@ public class HomeFragment extends Fragment {
         } else {
             tvNoAdsYet.setVisibility(View.GONE);
             rvAllAds.setVisibility(View.VISIBLE);
-            rvAllAds.setAdapter(new AdAdapter(ads, adPrefs, ad ->
+            rvAllAds.setAdapter(new AdAdapter(ads, null, ad ->
                     AdDetailFragment.newInstance(ad)
                             .show(getParentFragmentManager(), "ad_detail")));
         }
@@ -113,7 +122,6 @@ public class HomeFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        // Re-apply whatever the activity currently has as active filters
         if (getActivity() instanceof MainActivity) {
             ((MainActivity) getActivity()).reapplySearch();
         }

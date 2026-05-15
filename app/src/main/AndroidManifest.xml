@@ -38,6 +38,10 @@
             </intent-filter>
         </activity>
 
+        <service
+            android:name=".MessageListenerService"
+            android:exported="false" />
+
         <receiver
             android:name=".BootReceiver"
             android:exported="true"

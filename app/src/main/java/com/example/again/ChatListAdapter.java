@@ -74,7 +74,7 @@ public class ChatListAdapter extends RecyclerView.Adapter<ChatListAdapter.ChatVH
         h.tvTimestamp.setText(formatTimestamp(chat.getLastMessageTimestamp()));
 
         // Unread badge
-        int unread = chatPrefs.getUnreadCount(chat.getChatId(), myEmail);
+        int unread = chatPrefs.getUnreadCount(chat, myEmail);
         if (unread > 0) {
             h.tvUnread.setVisibility(View.VISIBLE);
             h.tvUnread.setText(unread > 99 ? "99+" : String.valueOf(unread));

@@ -21,6 +21,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.firebase.firestore.ListenerRegistration;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -36,14 +37,22 @@ public class ChatFragment extends Fragment {
         void onChatClose();
     }
 
-    private static final String ARG_CHAT_ID  = "chat_id";
-    private static final String ARG_MY_EMAIL = "my_email";
+    private static final String ARG_CHAT_ID    = "chat_id";
+    private static final String ARG_MY_EMAIL   = "my_email";
+    private static final String ARG_OTHER_NAME = "other_name";
+    private static final String ARG_AD_TITLE   = "ad_title";
+    private static final String ARG_AD_ID      = "ad_id";
 
-    public static ChatFragment newInstance(String chatId, String myEmail) {
+    /** Create a ChatFragment with all header info pre-loaded from the Chat object. */
+    public static ChatFragment newInstance(String chatId, String myEmail,
+                                           String otherName, String adTitle, String adId) {
         ChatFragment f = new ChatFragment();
         Bundle args = new Bundle();
-        args.putString(ARG_CHAT_ID,  chatId);
-        args.putString(ARG_MY_EMAIL, myEmail);
+        args.putString(ARG_CHAT_ID,    chatId);
+        args.putString(ARG_MY_EMAIL,   myEmail);
+        args.putString(ARG_OTHER_NAME, otherName);
+        args.putString(ARG_AD_TITLE,   adTitle);
+        args.putString(ARG_AD_ID,      adId);
         f.setArguments(args);
         return f;
     }
@@ -55,6 +64,10 @@ public class ChatFragment extends Fragment {
     private RecyclerView    rvMessages;
     private MessageAdapter  adapter;
     private EditText        etMessage;
+
+    /** Real-time Firestore listener — must be removed when the fragment is torn down. */
+    private ListenerRegistration messagesListener;
+    private ListenerRegistration chatListener;
 
     @Override
     public void onAttach(@NonNull Context context) {
@@ -74,13 +87,12 @@ public class ChatFragment extends Fragment {
     public void onViewCreated(@NonNull View root, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(root, savedInstanceState);
 
-        // Push layout above the keyboard whenever the IME inset changes
+        // Push layout above keyboard whenever the IME inset changes
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
             int imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
             int navBottom = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom;
             int statusTop = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top;
             root.setPadding(0, 0, 0, Math.max(imeBottom, navBottom));
-            // Apply real status-bar height as top padding on the chat top bar
             View topBar = root.findViewById(R.id.chatTopBar);
             if (topBar != null) topBar.setPadding(
                     topBar.getPaddingLeft(), statusTop,
@@ -89,36 +101,35 @@ public class ChatFragment extends Fragment {
         });
 
         if (getArguments() == null) { if (listener != null) listener.onChatClose(); return; }
-        chatId  = getArguments().getString(ARG_CHAT_ID, "");
-        myEmail = getArguments().getString(ARG_MY_EMAIL, "");
+        chatId  = getArguments().getString(ARG_CHAT_ID,    "");
+        myEmail = getArguments().getString(ARG_MY_EMAIL,   "");
+        String otherName = getArguments().getString(ARG_OTHER_NAME, "");
+        String adTitle   = getArguments().getString(ARG_AD_TITLE,   "");
+        String adId      = getArguments().getString(ARG_AD_ID,      "");
 
         chatPrefs = new ChatPreferences(requireContext());
 
-        Chat chat = chatPrefs.getChatById(chatId);
-        if (chat == null) { if (listener != null) listener.onChatClose(); return; }
-
-        // Top bar
+        // Top bar — filled immediately from Bundle args (no network call needed)
         TextView tvName    = root.findViewById(R.id.tvChatOtherName);
         TextView tvAdTitle = root.findViewById(R.id.tvChatAdTitleBar);
-        tvName.setText(chat.getOtherUserName(myEmail));
-        tvAdTitle.setText(chat.getAdTitle());
+        tvName.setText(otherName);
+        tvAdTitle.setText(adTitle);
 
         root.findViewById(R.id.btnChatBack).setOnClickListener(v -> {
             hideKeyboard();
             if (listener != null) listener.onChatClose();
         });
 
-        // Tap the header → open ad detail popup
+        // Tap header → open ad detail popup
         root.findViewById(R.id.llChatHeader).setOnClickListener(v -> {
-            AdPreferences adPrefs = new AdPreferences(requireContext());
-            Ad ad = adPrefs.getAdById(chat.getAdId());
+            Ad ad = AdPreferences.getCachedAd(adId);
             if (ad != null) {
                 AdDetailFragment.newInstance(ad)
                         .show(getParentFragmentManager(), "ad_detail_from_chat");
             }
         });
 
-        // Messages RecyclerView
+        // Messages list
         rvMessages = root.findViewById(R.id.rvMessages);
         LinearLayoutManager llm = new LinearLayoutManager(getContext());
         llm.setStackFromEnd(true);
@@ -136,26 +147,39 @@ public class ChatFragment extends Fragment {
             String[] user = up.getLoggedInUser();
             String phone = (user != null && user.length > 3) ? user[3].trim() : "";
             if (!phone.isEmpty()) {
-                // Append phone number to whatever is already typed
                 String current = etMessage.getText().toString();
-                String separator = current.isEmpty() ? "" : " ";
-                etMessage.setText(current + separator + phone);
+                String sep = current.isEmpty() ? "" : " ";
+                etMessage.setText(current + sep + phone);
                 etMessage.setSelection(etMessage.getText().length());
             } else {
-                new com.google.android.material.dialog.MaterialAlertDialogBuilder(
-                        requireContext(), R.style.PurpleAlertDialog)
+                new MaterialAlertDialogBuilder(requireContext(), R.style.PurpleAlertDialog)
                         .setTitle("No phone number")
-                        .setMessage("You haven't added a phone number to your account yet. Go to your profile to add one.")
+                        .setMessage("You haven't added a phone number to your account yet. "
+                                + "Go to your profile to add one.")
                         .setPositiveButton("OK", null)
                         .show();
             }
         });
+
         etMessage.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEND) { sendMessage(); return true; }
             return false;
         });
 
-        loadMessages();
+        // Start real-time listener — updates the UI automatically on every change
+        messagesListener = chatPrefs.listenForMessages(chatId, this::renderMessages);
+
+        // Watch the chat document for disabled state changes
+        View inputBar      = root.findViewById(R.id.inputBar);
+        android.widget.TextView tvDisabled = root.findViewById(R.id.tvChatDisabled);
+        chatListener = chatPrefs.listenToChat(chatId, chat -> {
+            if (!isAdded()) return;
+            boolean disabled = chat != null && chat.isDisabled();
+            requireActivity().runOnUiThread(() -> {
+                inputBar.setVisibility(disabled ? View.GONE : View.VISIBLE);
+                tvDisabled.setVisibility(disabled ? View.VISIBLE : View.GONE);
+            });
+        });
 
         // Mark as read
         chatPrefs.markChatRead(chatId, myEmail);
@@ -164,18 +188,45 @@ public class ChatFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        chatPrefs.markChatRead(chatId, myEmail);
+        if (chatPrefs != null) chatPrefs.markChatRead(chatId, myEmail);
+        // Tell the background service not to notify for this chat while it's open
+        MessageListenerService.currentOpenChatId = chatId;
     }
 
-    private void loadMessages() {
-        List<Message> raw = chatPrefs.getMessages(chatId);
-        List<Message> withDates = new ArrayList<>();
+    @Override
+    public void onPause() {
+        super.onPause();
+        // Allow notifications for this chat again once the user leaves it
+        if (chatId.equals(MessageListenerService.currentOpenChatId)) {
+            MessageListenerService.currentOpenChatId = null;
+        }
+    }
 
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        if (messagesListener != null) {
+            messagesListener.remove();
+            messagesListener = null;
+        }
+        if (chatListener != null) {
+            chatListener.remove();
+            chatListener = null;
+        }
+    }
+
+    // ── Render messages ───────────────────────────────────────────────────────
+
+    /** Called by the real-time listener every time the message list changes. */
+    private void renderMessages(List<Message> raw) {
+        if (!isAdded() || getContext() == null) return;
+
+        // Insert synthetic date-separator entries
+        List<Message> withDates = new ArrayList<>();
         String lastDay = null;
         for (Message m : raw) {
             String day = dayKey(m.getTimestamp());
             if (!day.equals(lastDay)) {
-                // Insert a synthetic date-separator message
                 Message sep = new Message(
                         UUID.randomUUID().toString(), chatId, "",
                         formatDayLabel(m.getTimestamp()),
@@ -186,32 +237,47 @@ public class ChatFragment extends Fragment {
             withDates.add(m);
         }
 
-        adapter = new MessageAdapter(withDates, myEmail, this::showMessageOptions);
-        rvMessages.setAdapter(adapter);
-        if (!withDates.isEmpty()) rvMessages.scrollToPosition(withDates.size() - 1);
+        boolean wasAtBottom = isAtBottom();
+
+        if (adapter == null) {
+            adapter = new MessageAdapter(withDates, myEmail, this::showMessageOptions);
+            rvMessages.setAdapter(adapter);
+        } else {
+            adapter.updateMessages(withDates);
+        }
+
+        // Scroll to bottom when a new message arrives or on first load
+        if (wasAtBottom || adapter.getItemCount() <= withDates.size()) {
+            rvMessages.scrollToPosition(withDates.size() - 1);
+        }
     }
 
-    /** Returns a string like "2024-05-04" used only for day-boundary comparison. */
+    private boolean isAtBottom() {
+        if (rvMessages == null) return true;
+        LinearLayoutManager llm = (LinearLayoutManager) rvMessages.getLayoutManager();
+        if (llm == null) return true;
+        int last = llm.findLastVisibleItemPosition();
+        int count = llm.getItemCount();
+        return last >= count - 2; // within 2 items of the bottom
+    }
+
+    // ── Date helpers ──────────────────────────────────────────────────────────
+
     private String dayKey(long timestamp) {
         return new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date(timestamp));
     }
 
-    /** Returns "Today", "Yesterday", or "Mon, 4 May 2024". */
     private String formatDayLabel(long timestamp) {
-        Calendar msgCal = Calendar.getInstance();
-        msgCal.setTimeInMillis(timestamp);
-
-        Calendar today = Calendar.getInstance();
+        Calendar msgCal   = Calendar.getInstance();
+        Calendar today     = Calendar.getInstance();
         Calendar yesterday = Calendar.getInstance();
+        msgCal.setTimeInMillis(timestamp);
         yesterday.add(Calendar.DAY_OF_YEAR, -1);
 
         if (isSameDay(msgCal, today))     return "Today";
         if (isSameDay(msgCal, yesterday)) return "Yesterday";
-
-        // Same year: omit the year
-        if (msgCal.get(Calendar.YEAR) == today.get(Calendar.YEAR)) {
+        if (msgCal.get(Calendar.YEAR) == today.get(Calendar.YEAR))
             return new SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(new Date(timestamp));
-        }
         return new SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(new Date(timestamp));
     }
 
@@ -220,13 +286,14 @@ public class ChatFragment extends Fragment {
             && a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR);
     }
 
+    // ── Send ──────────────────────────────────────────────────────────────────
+
     private void sendMessage() {
         String text = etMessage.getText().toString().trim();
         if (text.isEmpty()) return;
         etMessage.setText("");
-
+        // Listener fires automatically when Firestore confirms the write
         chatPrefs.sendMessage(chatId, myEmail, text);
-        loadMessages();
     }
 
     // ── Message long-press options ────────────────────────────────────────────
@@ -241,12 +308,8 @@ public class ChatFragment extends Fragment {
 
         new MaterialAlertDialogBuilder(requireContext(), R.style.PurpleAlertDialog)
                 .setItems(items, (dialog, which) -> {
-                    if (canEdit) {
-                        if (which == 0) showEditDialog(message);
-                        else confirmDelete(message);
-                    } else {
-                        confirmDelete(message);
-                    }
+                    if (canEdit && which == 0) showEditDialog(message);
+                    else confirmDelete(message);
                 })
                 .show();
     }
@@ -266,12 +329,17 @@ public class ChatFragment extends Fragment {
                 .setPositiveButton("Save", (d, w) -> {
                     String newText = input.getText().toString().trim();
                     if (newText.isEmpty()) {
-                        Toast.makeText(getContext(), "Message cannot be empty", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), "Message cannot be empty",
+                                Toast.LENGTH_SHORT).show();
                         return;
                     }
-                    boolean ok = chatPrefs.editMessage(chatId, message.getMsgId(), myEmail, newText);
-                    if (!ok) Toast.makeText(getContext(), "Edit window has passed", Toast.LENGTH_SHORT).show();
-                    loadMessages();
+                    // Listener fires automatically on success; onFail shows a toast
+                    chatPrefs.editMessage(chatId, message.getMsgId(), myEmail, newText, () -> {
+                        if (!isAdded()) return;
+                        requireActivity().runOnUiThread(() ->
+                                Toast.makeText(getContext(),
+                                        "Edit window has passed", Toast.LENGTH_SHORT).show());
+                    });
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
@@ -281,10 +349,8 @@ public class ChatFragment extends Fragment {
         new MaterialAlertDialogBuilder(requireContext(), R.style.PurpleAlertDialog)
                 .setTitle("Delete message?")
                 .setMessage("Everyone in this chat will see that the message was deleted.")
-                .setPositiveButton("Delete", (d, w) -> {
-                    chatPrefs.deleteMessage(chatId, message.getMsgId(), myEmail);
-                    loadMessages();
-                })
+                .setPositiveButton("Delete", (d, w) ->
+                        chatPrefs.deleteMessage(chatId, message.getMsgId(), myEmail))
                 .setNegativeButton("Cancel", null)
                 .show();
     }

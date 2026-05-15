@@ -40,10 +40,13 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.constraintlayout.widget.ConstraintSet;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.drawable.DrawableCompat;
+import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.checkbox.MaterialCheckBox;
 import com.google.android.material.chip.ChipGroup;
@@ -130,7 +133,31 @@ public class MainActivity extends AppCompatActivity
         chatContainer     = findViewById(R.id.chat_container);
         btnAcc            = findViewById(R.id.btnAcc);
 
-        updateAccountIcon(new UserPreferences(this).isLoggedIn());
+        // When setDecorFitsSystemWindows(false) is used the window no longer
+        // auto-shrinks for the keyboard, so we must apply the IME inset manually
+        // to each overlay container so their inner ScrollViews can scroll.
+        applyImeInsets(authContainer);
+        applyImeInsets(createAdContainer);
+
+        // Restore Firebase Auth session (async) — if a user was previously signed in,
+        // load their profile from Firestore so isLoggedIn() returns true.
+        UserPreferences userPrefs = new UserPreferences(this);
+        if (FirebaseAuth.getInstance().getCurrentUser() != null) {
+            userPrefs.restoreSession(new UserPreferences.Callback() {
+                @Override public void onSuccess() {
+                    updateAccountIcon(true);
+                    if (leftRef  != null) leftRef.refresh();
+                    if (rightRef != null) rightRef.refresh();
+                    String[] u = userPrefs.getLoggedInUser();
+                    if (u != null) startMessageService(u[1]);
+                }
+                @Override public void onFailure(String error) {
+                    updateAccountIcon(false);
+                }
+            });
+        } else {
+            updateAccountIcon(false);
+        }
 
         // Back press handler
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
@@ -319,14 +346,15 @@ public class MainActivity extends AppCompatActivity
         String[] user = up.getLoggedInUser();
         if (user == null) return;
 
+        final String myEmail = user[1];
         ChatPreferences chatPrefs = new ChatPreferences(this);
-        Chat chat = chatPrefs.getChatById(chatId);
-        if (chat == null) return;
-
-        // Navigate to chat tab and open the conversation
-        rightRef = new RightFragment();
-        switchTab(rightRef, 2, R.anim.slide_in_right, R.anim.slide_out_left);
-        new Handler().postDelayed(() -> openChat(chat, user[1]), 300);
+        chatPrefs.getChatById(chatId, chat -> {
+            if (chat == null) return;
+            // Navigate to chat tab and open the conversation
+            rightRef = new RightFragment();
+            switchTab(rightRef, 2, R.anim.slide_in_right, R.anim.slide_out_left);
+            new Handler().postDelayed(() -> openChat(chat, myEmail), 300);
+        });
     }
 
     // ── Tab switching ─────────────────────────────────────────────────────────
@@ -345,7 +373,11 @@ public class MainActivity extends AppCompatActivity
     public void openChat(Chat chat, String myEmail) {
         getSupportFragmentManager()
                 .beginTransaction()
-                .replace(R.id.chat_container, ChatFragment.newInstance(chat.getChatId(), myEmail))
+                .replace(R.id.chat_container, ChatFragment.newInstance(
+                        chat.getChatId(), myEmail,
+                        chat.getOtherUserName(myEmail),
+                        chat.getAdTitle(),
+                        chat.getAdId()))
                 .commit();
 
         int screenW = getResources().getDisplayMetrics().widthPixels;
@@ -432,7 +464,7 @@ public class MainActivity extends AppCompatActivity
     private void closeCreateAd() {
         int screenW = getResources().getDisplayMetrics().widthPixels;
         createAdContainer.animate()
-                .translationX(screenW)
+                .translationX(-screenW)
                 .setDuration(350)
                 .setInterpolator(new AccelerateInterpolator())
                 .withEndAction(() -> {
@@ -506,10 +538,8 @@ public class MainActivity extends AppCompatActivity
             Toast.makeText(this, "Signed in successfully!", Toast.LENGTH_SHORT).show();
             if (leftRef  != null) leftRef.refresh();
             if (rightRef != null) rightRef.refresh();
-            // Check for unread messages on login
             String[] user = new UserPreferences(this).getLoggedInUser();
-            if (user != null)
-                NotificationHelper.checkAndNotifyUnread(this, user[1]);
+            if (user != null) startMessageService(user[1]);
         });
     }
 
@@ -549,6 +579,7 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void onLogout() {
+        stopService(new Intent(this, MessageListenerService.class));
         updateAccountIcon(false);
         closeAuth(false, () -> {
             if (leftRef  != null) leftRef.refresh();
@@ -559,6 +590,14 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onProfileClose() {
         closeAuth(false, null);
+    }
+
+    // ── Message listener service ──────────────────────────────────────────────
+
+    private void startMessageService(String email) {
+        Intent svc = new Intent(this, MessageListenerService.class);
+        svc.putExtra("email", email);
+        startService(svc);
     }
 
     // ── Account icon ──────────────────────────────────────────────────────────
@@ -725,6 +764,21 @@ public class MainActivity extends AppCompatActivity
     }
 
     // ── Misc ──────────────────────────────────────────────────────────────────
+
+    /**
+     * Applies IME (keyboard) insets as bottom padding to a container view.
+     * Required because setDecorFitsSystemWindows(false) disables automatic
+     * keyboard-resize behaviour, so we must push the container up manually.
+     */
+    private void applyImeInsets(View container) {
+        ViewCompat.setOnApplyWindowInsetsListener(container, (v, insets) -> {
+            int imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
+            int navBottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom;
+            // When IME is visible use its height; otherwise fall back to nav bar height.
+            v.setPadding(0, 0, 0, Math.max(imeBottom, navBottom));
+            return insets;
+        });
+    }
 
     private int dpToPx(int dp) {
         return Math.round(dp * getResources().getDisplayMetrics().density);

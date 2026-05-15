@@ -2,6 +2,8 @@ package com.example.again;
 
 import android.util.Base64;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Ad {
     private String id;
@@ -21,7 +23,10 @@ public class Ad {
     private boolean isSold;          // true once marked sold
     private String description;      // up to 1000 chars, may be empty
 
-    public Ad() { ageUnit = ""; description = ""; }
+    /** Base64-encoded JPEG strings for each image (stored in Firestore). */
+    private List<String> images = new ArrayList<>();
+
+    public Ad() { ageUnit = ""; description = ""; images = new ArrayList<>(); }
 
     // Full constructor (create mode)
     public Ad(String id, String ownerUsername, String ownerEmail,
@@ -66,6 +71,9 @@ public class Ad {
     public boolean isSold()            { return isSold; }
     public String getDescription()     { return description != null ? description : ""; }
 
+    public List<String> getImages()          { return images != null ? images : new ArrayList<>(); }
+    public void setImages(List<String> imgs) { images = imgs != null ? imgs : new ArrayList<>();
+                                               imageCount = images.size(); }
     public void setImageCount(int c)         { imageCount = c; }
     public void setEditedTimestamp(long t)   { editedTimestamp = t; }
     public void setSold(boolean sold)        { isSold = sold; }

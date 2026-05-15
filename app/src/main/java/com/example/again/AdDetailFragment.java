@@ -34,12 +34,12 @@ import java.util.Locale;
 
 public class AdDetailFragment extends DialogFragment {
 
-    private static final String ARG_AD = "ad_serialized";
+    private static final String ARG_AD_ID = "ad_id";
 
     public static AdDetailFragment newInstance(Ad ad) {
         AdDetailFragment f = new AdDetailFragment();
         Bundle args = new Bundle();
-        args.putString(ARG_AD, ad.serialize());
+        args.putString(ARG_AD_ID, ad.getId());
         f.setArguments(args);
         return f;
     }
@@ -62,16 +62,14 @@ public class AdDetailFragment extends DialogFragment {
     public void onViewCreated(@NonNull View root, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(root, savedInstanceState);
 
-        String serialized = getArguments() != null ? getArguments().getString(ARG_AD) : null;
-        Ad ad = serialized != null ? Ad.deserialize(serialized) : null;
+        String adId = getArguments() != null ? getArguments().getString(ARG_AD_ID) : null;
+        Ad ad = adId != null ? AdPreferences.getCachedAd(adId) : null;
         if (ad == null) { dismiss(); return; }
-
-        AdPreferences adPrefs = new AdPreferences(requireContext());
 
         // ── Images ────────────────────────────────────────────────────────────
         List<Bitmap> bitmaps = new ArrayList<>();
-        for (int i = 0; i < ad.getImageCount(); i++) {
-            Bitmap bmp = adPrefs.loadImage(ad.getId(), i);
+        for (String b64 : ad.getImages()) {
+            Bitmap bmp = AdPreferences.decodeImage(b64);
             if (bmp != null) bitmaps.add(bmp);
         }
 
@@ -123,7 +121,7 @@ public class AdDetailFragment extends DialogFragment {
 
         // ── Text fields ───────────────────────────────────────────────────────
         setText(root, R.id.tvDetailName, ad.getProductName());
-        setText(root, R.id.tvDetailPrice, String.format(Locale.US, "₪%.2f", ad.getPrice()));
+        setText(root, R.id.tvDetailPrice, String.format(Locale.US, "₪%,.2f", ad.getPrice()));
         setText(root, R.id.tvDetailCondition, ad.getCondition());
         setText(root, R.id.tvDetailArea,
                 ad.getDeliveryArea().isEmpty() ? "Not specified" : ad.getDeliveryArea());
@@ -239,33 +237,48 @@ public class AdDetailFragment extends DialogFragment {
 
         ChatPreferences chatPrefs = new ChatPreferences(requireContext());
 
-        // Re-use existing chat if one already exists
-        Chat existing = chatPrefs.findChat(myEmail, ad.getOwnerEmail(), ad.getId());
-        String chatId;
-        if (existing != null) {
-            chatId = existing.getChatId();
-            // Un-delete if they had previously deleted it
-            if (chatPrefs.isDeleted(chatId, myEmail)) {
-                chatPrefs.unDeleteChat(chatId, myEmail);
+        // Try to find an existing chat first
+        chatPrefs.findChat(myEmail, ad.getOwnerEmail(), ad.getId(), existing -> {
+            if (!isAdded()) return;
+            if (existing != null) {
+                // Un-delete if they had previously deleted it
+                if (chatPrefs.isDeleted(existing.getChatId(), myEmail)) {
+                    chatPrefs.unDeleteChat(existing.getChatId(), myEmail);
+                }
+                openChatFromDetail(existing, myEmail);
+            } else {
+                // Create a new chat
+                chatPrefs.startChat(myEmail, myName,
+                        ad.getOwnerEmail(), ad.getOwnerUsername(),
+                        ad.getId(), ad.getProductName(), ad.getPrice(),
+                        chatId -> {
+                            if (!isAdded()) return;
+                            if (chatId == null) {
+                                requireActivity().runOnUiThread(() -> {
+                                    if (isAdded())
+                                        Toast.makeText(getContext(),
+                                                "Could not open chat", Toast.LENGTH_SHORT).show();
+                                });
+                                return;
+                            }
+                            // Build Chat locally — we already have all the data
+                            Chat newChat = new Chat(chatId, myEmail, myName,
+                                    ad.getOwnerEmail(), ad.getOwnerUsername(),
+                                    ad.getId(), ad.getProductName(), ad.getPrice());
+                            openChatFromDetail(newChat, myEmail);
+                        });
             }
-        } else {
-            chatId = chatPrefs.startChat(
-                    myEmail, myName,
-                    ad.getOwnerEmail(), ad.getOwnerUsername(),
-                    ad.getId(), ad.getProductName(), ad.getPrice());
-        }
+        });
+    }
 
-        Chat chat = chatPrefs.getChatById(chatId);
-        if (chat == null) {
-            Toast.makeText(getContext(), "Could not open chat", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        dismiss();
-
-        if (getActivity() instanceof MainActivity) {
-            ((MainActivity) getActivity()).openChat(chat, myEmail);
-        }
+    private void openChatFromDetail(Chat chat, String myEmail) {
+        requireActivity().runOnUiThread(() -> {
+            if (!isAdded()) return;
+            dismiss();
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).openChat(chat, myEmail);
+            }
+        });
     }
 
     // ── Dot indicator ─────────────────────────────────────────────────────────

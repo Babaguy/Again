@@ -102,13 +102,25 @@ public class SignUpFragment extends Fragment {
                 return;
             }
 
-            UserPreferences userPrefs = new UserPreferences(requireContext());
-            boolean success = userPrefs.registerUser(username, email, password, phone);
-            if (success) {
-                if (listener != null) listener.onSignUpSuccess();
-            } else {
-                Toast.makeText(getContext(), "This email is already registered", Toast.LENGTH_SHORT).show();
-            }
+            btnSignUp.setEnabled(false);
+            btnSignUp.setText("Creating account…");
+
+            new UserPreferences(requireContext()).registerUser(username, email, password, phone,
+                    new UserPreferences.Callback() {
+                        @Override public void onSuccess() {
+                            if (!isAdded()) return;
+                            if (listener != null) listener.onSignUpSuccess();
+                        }
+                        @Override public void onFailure(String error) {
+                            if (!isAdded()) return;
+                            btnSignUp.setEnabled(true);
+                            btnSignUp.setText("Create Account");
+                            String msg = error != null && error.contains("email address is already")
+                                    ? "This email is already registered"
+                                    : (error != null ? error : "Registration failed");
+                            Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
+                        }
+                    });
         });
 
         tvGoLogin.setOnClickListener(v -> {

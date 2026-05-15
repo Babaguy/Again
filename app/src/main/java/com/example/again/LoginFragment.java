@@ -75,13 +75,23 @@ public class LoginFragment extends Fragment {
                 return;
             }
 
-            UserPreferences userPrefs = new UserPreferences(requireContext());
-            String[] user = userPrefs.loginUser(email, password);
-            if (user != null) {
-                if (listener != null) listener.onLoginSuccess();
-            } else {
-                Toast.makeText(getContext(), "Incorrect email or password", Toast.LENGTH_SHORT).show();
-            }
+            btnLogin.setEnabled(false);
+            btnLogin.setText("Signing in…");
+
+            new UserPreferences(requireContext()).loginUser(email, password,
+                    new UserPreferences.Callback() {
+                        @Override public void onSuccess() {
+                            if (!isAdded()) return;
+                            if (listener != null) listener.onLoginSuccess();
+                        }
+                        @Override public void onFailure(String error) {
+                            if (!isAdded()) return;
+                            btnLogin.setEnabled(true);
+                            btnLogin.setText("Sign In");
+                            Toast.makeText(getContext(), "Incorrect email or password",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    });
         });
 
         tvSignUp.setOnClickListener(v -> {

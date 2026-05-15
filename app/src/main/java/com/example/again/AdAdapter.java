@@ -56,15 +56,16 @@ public class AdAdapter extends RecyclerView.Adapter<AdAdapter.AdViewHolder> {
         Ad ad = ads.get(position);
 
         holder.tvName.setText(ad.getProductName());
-        holder.tvPrice.setText(String.format(Locale.US, "₪%.2f", ad.getPrice()));
+        holder.tvPrice.setText(String.format(Locale.US, "₪%,.2f", ad.getPrice()));
         holder.tvCondition.setText(ad.getCondition());
 
         // Reset image placeholder first
         holder.ivImage.setImageResource(R.drawable.ic_add_photo);
         holder.ivImage.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
 
-        if (ad.getImageCount() > 0) {
-            Bitmap bmp = adPrefs.loadImage(ad.getId(), 0);
+        java.util.List<String> images = ad.getImages();
+        if (!images.isEmpty()) {
+            Bitmap bmp = AdPreferences.decodeImage(images.get(0));
             if (bmp != null) {
                 holder.ivImage.setImageBitmap(bmp);
                 holder.ivImage.setScaleType(ImageView.ScaleType.CENTER_CROP);

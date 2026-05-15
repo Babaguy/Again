@@ -3,252 +3,494 @@ package com.example.again;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FieldValue;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.WriteBatch;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * Persistent storage for chats and messages using SharedPreferences.
+ * All chat and message data lives in Firestore.
  *
- * Keys in prefs "again_chats":
- *   "chats"           → StringSet of Chat.serialize() strings
- *   "msgs_{chatId}"   → StringSet of Message.serialize() strings
- *   "ucs_{email}"     → StringSet of per-user-per-chat settings:
- *                          "{chatId}|{muted}|{archived}|{deleted}|{lastSeen}"
- *   "notif_{email}"   → StringSet of "{chatId}|{lastNotifiedTs}" (notification tracking)
+ * Firestore structure:
+ *   chats/{chatId}                       — chat metadata
+ *   chats/{chatId}/messages/{msgId}      — individual messages
+ *
+ * Per-user preferences (mute / archive / delete / lastSeen / notification tracking)
+ * stay in SharedPreferences — they are device-local settings, not shared data.
  */
 public class ChatPreferences {
 
-    private static final String PREFS_NAME  = "again_chats";
-    private static final String KEY_CHATS   = "chats";
+    // ── Callbacks ─────────────────────────────────────────────────────────────
 
-    // ASCII RS used inside Chat/Message — safe to use plain | here since these
-    // are different keys and we control the format entirely.
-    private static final char US_SETTINGS = '|';
+    public interface ChatsCallback    { void onResult(List<Chat> chats); }
+    public interface ChatCallback     { void onResult(Chat chat); }
+    public interface MessagesCallback { void onResult(List<Message> messages); }
+    public interface StringCallback   { void onResult(String value); }
 
+    // ── Constants ─────────────────────────────────────────────────────────────
+
+    private static final String COL_CHATS    = "chats";
+    private static final String COL_MESSAGES = "messages";
+    private static final String PREFS_NAME   = "again_chats";
+
+    // ── Fields ────────────────────────────────────────────────────────────────
+
+    private final Context           context;
+    private final FirebaseFirestore db;
     private final SharedPreferences prefs;
 
     public ChatPreferences(Context context) {
-        prefs = context.getApplicationContext()
-                       .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        this.context = context.getApplicationContext();
+        this.db      = FirebaseFirestore.getInstance();
+        this.prefs   = this.context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
 
-    // ─── Chat creation ────────────────────────────────────────────────────────
+    // ── Find / create chats ───────────────────────────────────────────────────
 
     /**
-     * Find an existing chat between these two users about this ad, or null.
+     * Find an existing chat between buyer and seller about this ad.
+     * Result is null if no chat exists.
      */
-    public Chat findChat(String buyerEmail, String sellerEmail, String adId) {
-        for (Chat c : loadAllChats()) {
-            if (c.getAdId().equals(adId)
-                    && c.getBuyerEmail().equalsIgnoreCase(buyerEmail)
-                    && c.getSellerEmail().equalsIgnoreCase(sellerEmail)) {
-                return c;
-            }
-        }
-        return null;
+    public void findChat(String buyerEmail, String sellerEmail, String adId, ChatCallback cb) {
+        // Single-field query (auto-indexed) — filter the rest client-side
+        db.collection(COL_CHATS)
+            .whereEqualTo("buyerEmail", buyerEmail)
+            .get()
+            .addOnSuccessListener(qs -> {
+                for (DocumentSnapshot doc : qs.getDocuments()) {
+                    Chat c = docToChat(doc);
+                    if (c != null
+                            && c.getSellerEmail().equalsIgnoreCase(sellerEmail)
+                            && c.getAdId().equals(adId)) {
+                        cb.onResult(c);
+                        return;
+                    }
+                }
+                cb.onResult(null);
+            })
+            .addOnFailureListener(e -> cb.onResult(null));
     }
 
     /**
-     * Start a new chat. Creates the Chat, sends a product-card message and then
-     * an "I'm interested" text message from the buyer. Returns the chatId.
+     * Create a new chat and send the opening product-card + "I'm interested" messages.
+     * Calls back with the chatId, or null on failure.
      */
-    public String startChat(String buyerEmail, String buyerName,
-                            String sellerEmail, String sellerName,
-                            String adId, String adTitle, double adPrice) {
+    public void startChat(String buyerEmail, String buyerName,
+                          String sellerEmail, String sellerName,
+                          String adId, String adTitle, double adPrice,
+                          StringCallback cb) {
         String chatId = UUID.randomUUID().toString();
         Chat chat = new Chat(chatId, buyerEmail, buyerName,
                 sellerEmail, sellerName, adId, adTitle, adPrice);
 
-        // Product-card message
-        String cardText = Message.makeProductCardText(
-                adTitle, String.format(Locale.US, "₪%.2f", adPrice));
-        sendMessageInternal(chat, new Message(
-                UUID.randomUUID().toString(), chatId, buyerEmail,
-                cardText, System.currentTimeMillis(), Message.TYPE_PRODUCT_CARD));
+        db.collection(COL_CHATS).document(chatId)
+            .set(chatToMap(chat))
+            .addOnSuccessListener(v -> {
+                // Product-card message
+                String cardText = Message.makeProductCardText(
+                        adTitle, String.format(Locale.US, "₪%,.2f", adPrice));
+                Message cardMsg = new Message(UUID.randomUUID().toString(), chatId, buyerEmail,
+                        cardText, System.currentTimeMillis(), Message.TYPE_PRODUCT_CARD);
 
-        // "I'm interested" text
-        sendMessageInternal(chat, new Message(
-                UUID.randomUUID().toString(), chatId, buyerEmail,
-                "I'm interested", System.currentTimeMillis() + 1, Message.TYPE_TEXT));
+                // "I'm interested" text
+                Message textMsg = new Message(UUID.randomUUID().toString(), chatId, buyerEmail,
+                        "I'm interested", System.currentTimeMillis() + 1, Message.TYPE_TEXT);
 
-        saveChat(chat);
-        return chatId;
+                sendMessageFirestore(chat, cardMsg, () ->
+                        sendMessageFirestore(chat, textMsg, () -> cb.onResult(chatId)));
+            })
+            .addOnFailureListener(e -> cb.onResult(null));
     }
 
-    // ─── Send a message ───────────────────────────────────────────────────────
+    // ── Fetch chats ───────────────────────────────────────────────────────────
 
-    public void sendMessage(String chatId, String senderEmail, String text) {
-        Chat chat = getChatById(chatId);
-        if (chat == null) return;
-        Message msg = new Message(UUID.randomUUID().toString(), chatId,
-                senderEmail, text, System.currentTimeMillis(), Message.TYPE_TEXT);
-        sendMessageInternal(chat, msg);
-        saveChat(chat);
-
-        // If the recipient had deleted the chat, restore it so they see the new message
-        String otherEmail = chat.getOtherUserEmail(senderEmail);
-        if (otherEmail != null && isDeleted(chatId, otherEmail)) {
-            unDeleteChat(chatId, otherEmail);
-        }
+    public void getChatById(String chatId, ChatCallback cb) {
+        db.collection(COL_CHATS).document(chatId).get()
+            .addOnSuccessListener(doc -> cb.onResult(docToChat(doc)))
+            .addOnFailureListener(e -> cb.onResult(null));
     }
 
-    private void sendMessageInternal(Chat chat, Message msg) {
-        // Persist message
-        String key = "msgs_" + chat.getChatId();
-        Set<String> msgs = new LinkedHashSet<>(prefs.getStringSet(key, new LinkedHashSet<>()));
-        msgs.add(msg.serialize());
-        prefs.edit().putStringSet(key, msgs).apply();
+    /** All chats the user participates in (not deleted by them), newest-first. */
+    public void getChatsForUser(String email, ChatsCallback cb) {
+        final List<Chat> merged  = new ArrayList<>();
+        final int[]      pending = {2};
 
-        // Update chat's last-message preview
-        String preview;
-        if (msg.isDeleted()) {
-            preview = "Message deleted";
-        } else if (Message.TYPE_PRODUCT_CARD.equals(msg.getType())) {
-            preview = "📦 " + chat.getAdTitle();
-        } else if (Message.TYPE_SYSTEM.equals(msg.getType())) {
-            preview = "🗑 " + msg.getText();
-        } else {
-            preview = msg.getText();
-        }
-        chat.setLastMessageText(preview);
-        chat.setLastMessageTimestamp(msg.getTimestamp());
+        // Query 1: I'm the buyer
+        db.collection(COL_CHATS).whereEqualTo("buyerEmail", email).get()
+            .addOnSuccessListener(qs -> {
+                for (DocumentSnapshot doc : qs.getDocuments()) {
+                    if (inDeletedBy(doc, email)) continue;  // hidden for this user
+                    Chat c = docToChat(doc);
+                    if (c != null) merged.add(c);
+                }
+                pending[0]--;
+                if (pending[0] == 0) sortAndReturn(merged, cb);
+            })
+            .addOnFailureListener(e -> {
+                pending[0]--;
+                if (pending[0] == 0) sortAndReturn(merged, cb);
+            });
+
+        // Query 2: I'm the seller
+        db.collection(COL_CHATS).whereEqualTo("sellerEmail", email).get()
+            .addOnSuccessListener(qs -> {
+                for (DocumentSnapshot doc : qs.getDocuments()) {
+                    if (inDeletedBy(doc, email)) continue;  // hidden for this user
+                    Chat c = docToChat(doc);
+                    if (c == null) continue;
+                    boolean dup = false;
+                    for (Chat ex : merged) {
+                        if (ex.getChatId().equals(c.getChatId())) { dup = true; break; }
+                    }
+                    if (!dup) merged.add(c);
+                }
+                pending[0]--;
+                if (pending[0] == 0) sortAndReturn(merged, cb);
+            })
+            .addOnFailureListener(e -> {
+                pending[0]--;
+                if (pending[0] == 0) sortAndReturn(merged, cb);
+            });
     }
 
-    // ─── Load messages ────────────────────────────────────────────────────────
-
-    public List<Message> getMessages(String chatId) {
-        String key = "msgs_" + chatId;
-        Set<String> raw = prefs.getStringSet(key, new LinkedHashSet<>());
-        List<Message> list = new ArrayList<>();
-        for (String s : raw) {
-            Message m = Message.deserialize(s);
-            if (m != null) list.add(m);
-        }
-        list.sort((a, b) -> Long.compare(a.getTimestamp(), b.getTimestamp()));
-        return list;
+    private void sortAndReturn(List<Chat> list, ChatsCallback cb) {
+        list.sort((a, b) -> Long.compare(b.getLastMessageTimestamp(), a.getLastMessageTimestamp()));
+        cb.onResult(list);
     }
 
-    public Message getLastMessage(String chatId) {
-        List<Message> msgs = getMessages(chatId);
-        return msgs.isEmpty() ? null : msgs.get(msgs.size() - 1);
-    }
-
-    // ─── Delete / edit messages ───────────────────────────────────────────────
-
-    /** Mark a message as deleted (only by sender). Returns true on success. */
-    public boolean deleteMessage(String chatId, String msgId, String senderEmail) {
-        String key = "msgs_" + chatId;
-        Set<String> raw = new LinkedHashSet<>(prefs.getStringSet(key, new LinkedHashSet<>()));
-        String oldSerialized = null;
-        Message target = null;
-        for (String s : raw) {
-            Message m = Message.deserialize(s);
-            if (m != null && m.getMsgId().equals(msgId)
-                    && m.getSenderEmail().equalsIgnoreCase(senderEmail)) {
-                oldSerialized = s;
-                target = m;
-                break;
+    /** Active (non-archived) chats. */
+    public void getActiveChatsForUser(String email, ChatsCallback cb) {
+        getChatsForUser(email, chats -> {
+            List<Chat> result = new ArrayList<>();
+            for (Chat c : chats) {
+                if (!isArchived(c.getChatId(), email)) result.add(c);
             }
-        }
-        if (target == null) return false;
-        target.setDeleted(true);
-        raw.remove(oldSerialized);
-        raw.add(target.serialize());
-        prefs.edit().putStringSet(key, raw).apply();
-
-        // Update chat last-message if needed
-        Chat chat = getChatById(chatId);
-        if (chat != null) {
-            Message last = getLastMessage(chatId);
-            if (last != null) {
-                chat.setLastMessageText(last.isDeleted() ? "Message deleted" : last.getText());
-                saveChat(chat);
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Edit a message's text (only by sender, only within 1 hour). Returns true on success.
-     */
-    public boolean editMessage(String chatId, String msgId, String senderEmail, String newText) {
-        String key = "msgs_" + chatId;
-        Set<String> raw = new LinkedHashSet<>(prefs.getStringSet(key, new LinkedHashSet<>()));
-        String oldSerialized = null;
-        Message target = null;
-        for (String s : raw) {
-            Message m = Message.deserialize(s);
-            if (m != null && m.getMsgId().equals(msgId)
-                    && m.getSenderEmail().equalsIgnoreCase(senderEmail)
-                    && m.canEdit()) {
-                oldSerialized = s;
-                target = m;
-                break;
-            }
-        }
-        if (target == null) return false;
-        target.setText(newText);
-        target.setEditedTimestamp(System.currentTimeMillis());
-        raw.remove(oldSerialized);
-        raw.add(target.serialize());
-        prefs.edit().putStringSet(key, raw).apply();
-
-        // Update chat last-message if it was the last one
-        Chat chat = getChatById(chatId);
-        if (chat != null) {
-            Message last = getLastMessage(chatId);
-            if (last != null && last.getMsgId().equals(msgId)) {
-                chat.setLastMessageText(newText);
-                saveChat(chat);
-            }
-        }
-        return true;
-    }
-
-    // ─── Chat list ────────────────────────────────────────────────────────────
-
-    /** All chats the user participates in, not deleted by them. Sorted newest-first. */
-    public List<Chat> getChatsForUser(String email) {
-        List<Chat> result = new ArrayList<>();
-        for (Chat c : loadAllChats()) {
-            if (c.involves(email) && !isDeleted(c.getChatId(), email)) {
-                result.add(c);
-            }
-        }
-        result.sort((a, b) -> Long.compare(b.getLastMessageTimestamp(), a.getLastMessageTimestamp()));
-        return result;
-    }
-
-    /** Non-archived chats. */
-    public List<Chat> getActiveChatsForUser(String email) {
-        List<Chat> result = new ArrayList<>();
-        for (Chat c : getChatsForUser(email)) {
-            if (!isArchived(c.getChatId(), email)) result.add(c);
-        }
-        return result;
+            cb.onResult(result);
+        });
     }
 
     /** Archived chats. */
-    public List<Chat> getArchivedChatsForUser(String email) {
-        List<Chat> result = new ArrayList<>();
-        for (Chat c : getChatsForUser(email)) {
-            if (isArchived(c.getChatId(), email)) result.add(c);
-        }
-        return result;
+    public void getArchivedChatsForUser(String email, ChatsCallback cb) {
+        getChatsForUser(email, chats -> {
+            List<Chat> result = new ArrayList<>();
+            for (Chat c : chats) {
+                if (isArchived(c.getChatId(), email)) result.add(c);
+            }
+            cb.onResult(result);
+        });
     }
 
-    public Chat getChatById(String chatId) {
-        for (Chat c : loadAllChats()) {
-            if (c.getChatId().equals(chatId)) return c;
-        }
-        return null;
+    // ── Messages ──────────────────────────────────────────────────────────────
+
+    /** One-time fetch. Useful for notifications. */
+    public void getMessages(String chatId, MessagesCallback cb) {
+        db.collection(COL_CHATS).document(chatId)
+            .collection(COL_MESSAGES)
+            .orderBy("timestamp")
+            .get()
+            .addOnSuccessListener(qs -> {
+                List<Message> list = new ArrayList<>();
+                for (DocumentSnapshot doc : qs.getDocuments()) {
+                    Message m = docToMessage(doc);
+                    if (m != null) list.add(m);
+                }
+                cb.onResult(list);
+            })
+            .addOnFailureListener(e -> cb.onResult(new ArrayList<>()));
     }
 
-    // ─── Per-user chat settings ───────────────────────────────────────────────
+    /**
+     * Real-time snapshot listener — fires immediately with current data, then on
+     * every change. Store the returned registration and call remove() on it when
+     * the fragment is destroyed.
+     */
+    /** Real-time listener on the chat document itself (e.g. to watch for disabled state). */
+    public ListenerRegistration listenToChat(String chatId, ChatCallback cb) {
+        return db.collection(COL_CHATS).document(chatId)
+            .addSnapshotListener((doc, err) -> cb.onResult(docToChat(doc)));
+    }
+
+    public ListenerRegistration listenForMessages(String chatId, MessagesCallback cb) {
+        return db.collection(COL_CHATS).document(chatId)
+            .collection(COL_MESSAGES)
+            .orderBy("timestamp")
+            .addSnapshotListener((qs, err) -> {
+                if (qs == null) { cb.onResult(new ArrayList<>()); return; }
+                List<Message> list = new ArrayList<>();
+                for (DocumentSnapshot doc : qs.getDocuments()) {
+                    Message m = docToMessage(doc);
+                    if (m != null) list.add(m);
+                }
+                cb.onResult(list);
+            });
+    }
+
+    // ── Send / edit / delete messages ─────────────────────────────────────────
+
+    /** Fire-and-forget send. The real-time listener in ChatFragment will update the UI. */
+    public void sendMessage(String chatId, String senderEmail, String text) {
+        getChatById(chatId, chat -> {
+            if (chat == null) return;
+            Message msg = new Message(UUID.randomUUID().toString(), chatId,
+                    senderEmail, text, System.currentTimeMillis(), Message.TYPE_TEXT);
+            sendMessageFirestore(chat, msg, null);
+
+            // If the recipient had soft-deleted the chat, restore it
+            String other = chat.getOtherUserEmail(senderEmail);
+            if (other != null && isDeleted(chatId, other)) unDeleteChat(chatId, other);
+        });
+    }
+
+    /** Mark a message as deleted (sender only). */
+    public void deleteMessage(String chatId, String msgId, String senderEmail) {
+        db.collection(COL_CHATS).document(chatId)
+            .collection(COL_MESSAGES).document(msgId)
+            .get()
+            .addOnSuccessListener(doc -> {
+                Message m = docToMessage(doc);
+                if (m == null || !m.getSenderEmail().equalsIgnoreCase(senderEmail)) return;
+                db.collection(COL_CHATS).document(chatId)
+                    .collection(COL_MESSAGES).document(msgId)
+                    .update("deleted", true);
+            });
+    }
+
+    /** Edit a message (sender only, within the edit window). Calls onFail if not possible. */
+    public void editMessage(String chatId, String msgId, String senderEmail,
+                            String newText, Runnable onFail) {
+        db.collection(COL_CHATS).document(chatId)
+            .collection(COL_MESSAGES).document(msgId)
+            .get()
+            .addOnSuccessListener(doc -> {
+                Message m = docToMessage(doc);
+                if (m == null
+                        || !m.getSenderEmail().equalsIgnoreCase(senderEmail)
+                        || !m.canEdit()) {
+                    if (onFail != null) onFail.run();
+                    return;
+                }
+                Map<String, Object> upd = new HashMap<>();
+                upd.put("text", newText);
+                upd.put("editedTimestamp", System.currentTimeMillis());
+                db.collection(COL_CHATS).document(chatId)
+                    .collection(COL_MESSAGES).document(msgId)
+                    .update(upd);
+            })
+            .addOnFailureListener(e -> { if (onFail != null) onFail.run(); });
+    }
+
+    // ── Chat-level operations ─────────────────────────────────────────────────
+
+    /**
+     * Soft-delete: hides the chat from this user's view.
+     * Sends a system notice to the other participant, then adds the user's email
+     * to the Firestore `deletedBy` array. If both participants have now deleted,
+     * the entire chat and its messages are permanently purged.
+     */
+    public void deleteChat(String chatId, String email, String displayName) {
+        // 1. Local prefs → immediate UI update on this device
+        UserChatSetting s = getSetting(chatId, email);
+        s.deleted = true;
+        saveSetting(chatId, email, s);
+
+        // 2. Send system notice, then update Firestore
+        getChatById(chatId, chat -> {
+            if (chat != null) {
+                String notice = displayName + " deleted this conversation";
+                Message sys = new Message(UUID.randomUUID().toString(), chatId, email,
+                        notice, System.currentTimeMillis(), Message.TYPE_SYSTEM);
+                sendMessageFirestore(chat, sys, null);
+            }
+
+            // 3. Add email to deletedBy
+            db.collection(COL_CHATS).document(chatId)
+                .update("deletedBy", FieldValue.arrayUnion(email))
+                .addOnSuccessListener(v -> {
+                    // 4. Check if both participants have now deleted → purge
+                    db.collection(COL_CHATS).document(chatId).get()
+                        .addOnSuccessListener(doc -> {
+                            if (chat == null) return;
+                            if (inDeletedBy(doc, chat.getBuyerEmail())
+                                    && inDeletedBy(doc, chat.getSellerEmail())) {
+                                purgeChat(chatId);
+                            }
+                        });
+                });
+        });
+    }
+
+    /** Permanently delete a chat document and all its messages. */
+    private void purgeChat(String chatId) {
+        db.collection(COL_CHATS).document(chatId)
+            .collection(COL_MESSAGES).get()
+            .addOnSuccessListener(qs -> {
+                WriteBatch batch = db.batch();
+                for (DocumentSnapshot doc : qs.getDocuments()) {
+                    batch.delete(doc.getReference());
+                }
+                // Delete the chat document itself in the same batch
+                batch.delete(db.collection(COL_CHATS).document(chatId));
+                batch.commit();
+            });
+    }
+
+    /** Update the stored ad title in every chat that references this ad. */
+    public void updateAdTitleInChats(String adId, String newTitle) {
+        db.collection(COL_CHATS).whereEqualTo("adId", adId).get()
+            .addOnSuccessListener(qs -> {
+                for (DocumentSnapshot doc : qs.getDocuments()) {
+                    db.collection(COL_CHATS).document(doc.getId())
+                        .update("adTitle", newTitle != null ? newTitle : "");
+                }
+            });
+    }
+
+    /** Send a "marked as sold" system message to all chats for this ad. */
+    public void sendSoldNotification(String adId, String sellerEmail, String productName) {
+        sendSystemToAdChats(adId, sellerEmail,
+                "🏷️ \"" + productName + "\" has been marked as sold.");
+    }
+
+    /** Send an "available again" system message to all chats for this ad. */
+    public void sendUnsoldNotification(String adId, String sellerEmail, String productName) {
+        sendSystemToAdChats(adId, sellerEmail,
+                "✅ \"" + productName + "\" is available again.");
+    }
+
+    /** Send an "ad was edited" system message to all chats for this ad. */
+    public void sendEditedNotification(String adId, String sellerEmail, String productName) {
+        sendSystemToAdChats(adId, sellerEmail,
+                "✏️ \"" + productName + "\" has been updated by the seller.");
+    }
+
+    /** Send an "ad was deleted" system message to all chats for this ad. */
+    public void sendAdDeletedNotification(String adId, String sellerEmail, String productName) {
+        sendSystemToAdChats(adId, sellerEmail,
+                "🗑️ \"" + productName + "\" has been deleted by the seller.");
+    }
+
+    /**
+     * Called when a user deletes their account. For every chat they were part of:
+     *  - Checks whether the OTHER participant's account still exists in Firestore.
+     *  - If the other user is gone too → purge the chat completely (no one left).
+     *  - If the other user still exists → mark the chat as disabled and send a
+     *    system message so they can see what happened but can't reply.
+     */
+    public void handleUserAccountDeletion(String userEmail, String displayName, Runnable onDone) {
+        final List<DocumentSnapshot> allDocs = new ArrayList<>();
+        final int[]                  pending = {2};
+
+        Runnable afterBothQueries = () -> {
+            if (allDocs.isEmpty()) {
+                if (onDone != null) onDone.run();
+                return;
+            }
+            final int[] remaining = {allDocs.size()};
+            Runnable dec = () -> {
+                remaining[0]--;
+                if (remaining[0] == 0 && onDone != null) onDone.run();
+            };
+
+            String notice = "👤 " + displayName + " has deleted their account.";
+
+            for (DocumentSnapshot doc : allDocs) {
+                Chat chat = docToChat(doc);
+                if (chat == null) { dec.run(); continue; }
+
+                String otherEmail = chat.getOtherUserEmail(userEmail);
+
+                // Check if the other user's account actually still exists in Firestore
+                db.collection("users")
+                    .whereEqualTo("email", otherEmail)
+                    .limit(1)
+                    .get()
+                    .addOnSuccessListener(qs -> {
+                        if (qs.isEmpty()) {
+                            // Other user's account is also gone → purge the chat entirely
+                            purgeChat(chat.getChatId());
+                            dec.run();
+                        } else {
+                            // Other user still exists → disable + notify them
+                            db.collection(COL_CHATS).document(chat.getChatId())
+                                .update("disabled", true)
+                                .addOnCompleteListener(t -> {
+                                    Message sys = new Message(UUID.randomUUID().toString(),
+                                            chat.getChatId(), userEmail,
+                                            notice, System.currentTimeMillis(), Message.TYPE_SYSTEM);
+                                    sendMessageFirestore(chat, sys, dec);
+                                });
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        // On failure, play it safe: disable instead of purging
+                        db.collection(COL_CHATS).document(chat.getChatId())
+                            .update("disabled", true)
+                            .addOnCompleteListener(t -> dec.run());
+                    });
+            }
+        };
+
+        db.collection(COL_CHATS).whereEqualTo("buyerEmail", userEmail).get()
+            .addOnSuccessListener(qs -> {
+                allDocs.addAll(qs.getDocuments());
+                pending[0]--;
+                if (pending[0] == 0) afterBothQueries.run();
+            })
+            .addOnFailureListener(e -> {
+                pending[0]--;
+                if (pending[0] == 0) afterBothQueries.run();
+            });
+
+        db.collection(COL_CHATS).whereEqualTo("sellerEmail", userEmail).get()
+            .addOnSuccessListener(qs -> {
+                for (DocumentSnapshot doc : qs.getDocuments()) {
+                    boolean dup = false;
+                    for (DocumentSnapshot ex : allDocs) {
+                        if (ex.getId().equals(doc.getId())) { dup = true; break; }
+                    }
+                    if (!dup) allDocs.add(doc);
+                }
+                pending[0]--;
+                if (pending[0] == 0) afterBothQueries.run();
+            })
+            .addOnFailureListener(e -> {
+                pending[0]--;
+                if (pending[0] == 0) afterBothQueries.run();
+            });
+    }
+
+    private void sendSystemToAdChats(String adId, String sellerEmail, String text) {
+        db.collection(COL_CHATS).whereEqualTo("adId", adId).get()
+            .addOnSuccessListener(qs -> {
+                for (DocumentSnapshot doc : qs.getDocuments()) {
+                    Chat chat = docToChat(doc);
+                    if (chat == null
+                            || !chat.getSellerEmail().equalsIgnoreCase(sellerEmail)
+                            || isDeleted(chat.getChatId(), sellerEmail)) continue;
+
+                    Message sys = new Message(UUID.randomUUID().toString(),
+                            chat.getChatId(), sellerEmail,
+                            text, System.currentTimeMillis(), Message.TYPE_SYSTEM);
+                    sendMessageFirestore(chat, sys, null);
+
+                    // Restore for the buyer if they had deleted the chat
+                    String buyer = chat.getBuyerEmail();
+                    if (isDeleted(chat.getChatId(), buyer)) unDeleteChat(chat.getChatId(), buyer);
+                }
+            });
+    }
+
+    // ── Per-user local settings (SharedPreferences) ───────────────────────────
 
     public void muteChat(String chatId, String email, boolean muted) {
         UserChatSetting s = getSetting(chatId, email);
@@ -262,115 +504,29 @@ public class ChatPreferences {
         saveSetting(chatId, email, s);
     }
 
-    /**
-     * Update the stored adTitle in every chat that references this adId.
-     * Call this whenever an ad's name is changed so chat headers stay in sync.
-     */
-    public void updateAdTitleInChats(String adId, String newTitle) {
-        Set<String> existing = new LinkedHashSet<>(prefs.getStringSet(KEY_CHATS, new LinkedHashSet<>()));
-        Set<String> updated  = new LinkedHashSet<>();
-        boolean changed = false;
-        for (String s : existing) {
-            Chat c = Chat.deserialize(s);
-            if (c != null && c.getAdId().equals(adId)) {
-                c.setAdTitle(newTitle != null ? newTitle : "");
-                updated.add(c.serialize());
-                changed = true;
-            } else {
-                updated.add(s);
-            }
-        }
-        if (changed) prefs.edit().putStringSet(KEY_CHATS, updated).apply();
-    }
-
-    /**
-     * Send a system message to every non-deleted chat about a specific ad,
-     * notifying participants that the item has been sold.
-     */
-    public void sendSoldNotification(String adId, String sellerEmail, String productName) {
-        String text = "🏷️ \"" + productName + "\" has been marked as sold.";
-        for (Chat chat : loadAllChats()) {
-            if (!chat.getAdId().equals(adId)) continue;
-            if (!chat.getSellerEmail().equalsIgnoreCase(sellerEmail)) continue;
-            if (isDeleted(chat.getChatId(), sellerEmail)) continue;
-
-            Message sysMsg = new Message(
-                    UUID.randomUUID().toString(), chat.getChatId(), sellerEmail,
-                    text, System.currentTimeMillis(), Message.TYPE_SYSTEM);
-            sendMessageInternal(chat, sysMsg);
-            saveChat(chat);
-
-            // Restore for the buyer if they had previously deleted the chat
-            String buyerEmail = chat.getBuyerEmail();
-            if (isDeleted(chat.getChatId(), buyerEmail)) {
-                unDeleteChat(chat.getChatId(), buyerEmail);
-            }
-        }
-    }
-
-    /**
-     * Send a system message to every non-deleted chat about a specific ad,
-     * notifying participants that the item is available again.
-     */
-    public void sendUnsoldNotification(String adId, String sellerEmail, String productName) {
-        String text = "✅ \"" + productName + "\" is available again.";
-        for (Chat chat : loadAllChats()) {
-            if (!chat.getAdId().equals(adId)) continue;
-            if (!chat.getSellerEmail().equalsIgnoreCase(sellerEmail)) continue;
-            if (isDeleted(chat.getChatId(), sellerEmail)) continue;
-
-            Message sysMsg = new Message(
-                    UUID.randomUUID().toString(), chat.getChatId(), sellerEmail,
-                    text, System.currentTimeMillis(), Message.TYPE_SYSTEM);
-            sendMessageInternal(chat, sysMsg);
-            saveChat(chat);
-
-            // Restore the buyer's view if they had previously deleted the chat
-            String buyerEmail = chat.getBuyerEmail();
-            if (isDeleted(chat.getChatId(), buyerEmail)) {
-                unDeleteChat(chat.getChatId(), buyerEmail);
-            }
-        }
-    }
-
-    /** Restore a previously deleted chat back into the user's active list. */
     public void unDeleteChat(String chatId, String email) {
         UserChatSetting s = getSetting(chatId, email);
         s.deleted  = false;
-        s.archived = false;   // bring it back to the active list, not the archive
+        s.archived = false;
         saveSetting(chatId, email, s);
     }
 
-    /** Soft-delete: removes the chat from this user's view and posts a system notice. */
-    public void deleteChat(String chatId, String email, String displayName) {
-        // Post a system message so the other person sees what happened
-        Chat chat = getChatById(chatId);
-        if (chat != null) {
-            String notice = displayName + " deleted this conversation";
-            Message sysMsg = new Message(
-                    UUID.randomUUID().toString(), chatId, email,
-                    notice, System.currentTimeMillis(), Message.TYPE_SYSTEM);
-            sendMessageInternal(chat, sysMsg);
-            saveChat(chat);
-        }
-        UserChatSetting s = getSetting(chatId, email);
-        s.deleted = true;
-        saveSetting(chatId, email, s);
-    }
+    public boolean isMuted(String chatId, String email)    { return getSetting(chatId, email).muted; }
+    public boolean isArchived(String chatId, String email) { return getSetting(chatId, email).archived; }
+    public boolean isDeleted(String chatId, String email)  { return getSetting(chatId, email).deleted; }
 
-    public boolean isMuted(String chatId, String email) {
-        return getSetting(chatId, email).muted;
-    }
+    // ── Unread count ──────────────────────────────────────────────────────────
 
-    public boolean isArchived(String chatId, String email) {
-        return getSetting(chatId, email).archived;
+    /**
+     * Lightweight unread indicator using only local lastSeen timestamp and the
+     * chat's lastMessageTimestamp (already loaded in the list).
+     * Returns 1 if there's likely an unread message, 0 otherwise.
+     */
+    public int getUnreadCount(Chat chat, String email) {
+        if (chat == null) return 0;
+        long lastSeen = getSetting(chat.getChatId(), email).lastSeen;
+        return chat.getLastMessageTimestamp() > lastSeen ? 1 : 0;
     }
-
-    public boolean isDeleted(String chatId, String email) {
-        return getSetting(chatId, email).deleted;
-    }
-
-    // ─── Read / unread tracking ───────────────────────────────────────────────
 
     public void markChatRead(String chatId, String email) {
         UserChatSetting s = getSetting(chatId, email);
@@ -378,37 +534,8 @@ public class ChatPreferences {
         saveSetting(chatId, email, s);
     }
 
-    /**
-     * Count messages in this chat that were sent by someone other than email
-     * after that user's lastSeen timestamp.
-     */
-    public int getUnreadCount(String chatId, String email) {
-        long lastSeen = getSetting(chatId, email).lastSeen;
-        int count = 0;
-        for (Message m : getMessages(chatId)) {
-            if (!m.getSenderEmail().equalsIgnoreCase(email)
-                    && m.getTimestamp() > lastSeen
-                    && !m.isDeleted()
-                    && !Message.TYPE_SYSTEM.equals(m.getType())) {
-                count++;
-            }
-        }
-        return count;
-    }
+    // ── Notification tracking ─────────────────────────────────────────────────
 
-    public int getTotalUnreadCount(String email) {
-        int total = 0;
-        for (Chat c : getChatsForUser(email)) {
-            if (!isMuted(c.getChatId(), email)) {
-                total += getUnreadCount(c.getChatId(), email);
-            }
-        }
-        return total;
-    }
-
-    // ─── Notification tracking ────────────────────────────────────────────────
-
-    /** Returns the timestamp of the last message we already fired a notification for. */
     public long getLastNotifiedTimestamp(String chatId, String email) {
         String key = "notif_" + email;
         for (String s : prefs.getStringSet(key, new LinkedHashSet<>())) {
@@ -428,31 +555,120 @@ public class ChatPreferences {
         prefs.edit().putStringSet(key, set).apply();
     }
 
-    // ─── Private helpers ──────────────────────────────────────────────────────
+    // ── Internal: write a message to Firestore ────────────────────────────────
 
-    private List<Chat> loadAllChats() {
-        Set<String> raw = prefs.getStringSet(KEY_CHATS, new LinkedHashSet<>());
-        List<Chat> list = new ArrayList<>();
-        for (String s : raw) {
-            Chat c = Chat.deserialize(s);
-            if (c != null) list.add(c);
+    private void sendMessageFirestore(Chat chat, Message msg, Runnable onDone) {
+        db.collection(COL_CHATS).document(chat.getChatId())
+            .collection(COL_MESSAGES).document(msg.getMsgId())
+            .set(messageToMap(msg))
+            .addOnSuccessListener(v -> {
+                // Update the chat's last-message preview
+                String preview;
+                if (msg.isDeleted()) {
+                    preview = "Message deleted";
+                } else if (Message.TYPE_PRODUCT_CARD.equals(msg.getType())) {
+                    preview = "📦 " + chat.getAdTitle();
+                } else if (Message.TYPE_SYSTEM.equals(msg.getType())) {
+                    preview = msg.getText();
+                } else {
+                    preview = msg.getText();
+                }
+                Map<String, Object> upd = new HashMap<>();
+                upd.put("lastMessageText", preview);
+                upd.put("lastMessageTimestamp", msg.getTimestamp());
+                upd.put("lastSenderEmail", msg.getSenderEmail());
+                db.collection(COL_CHATS).document(chat.getChatId()).update(upd);
+                if (onDone != null) onDone.run();
+            });
+    }
+
+    // ── Firestore serialization ───────────────────────────────────────────────
+
+    private Map<String, Object> chatToMap(Chat chat) {
+        Map<String, Object> m = new HashMap<>();
+        m.put("chatId",               chat.getChatId());
+        m.put("buyerEmail",           chat.getBuyerEmail());
+        m.put("buyerName",            chat.getBuyerName());
+        m.put("sellerEmail",          chat.getSellerEmail());
+        m.put("sellerName",           chat.getSellerName());
+        m.put("adId",                 chat.getAdId());
+        m.put("adTitle",              chat.getAdTitle());
+        m.put("adPrice",              chat.getAdPrice());
+        m.put("lastMessageText",      chat.getLastMessageText());
+        m.put("lastMessageTimestamp", chat.getLastMessageTimestamp());
+        m.put("disabled",             chat.isDisabled());
+        return m;
+    }
+
+    private Chat docToChat(DocumentSnapshot doc) {
+        if (doc == null || !doc.exists()) return null;
+        try {
+            String chatId    = s(doc, "chatId");
+            if (chatId.isEmpty()) chatId = doc.getId();
+            Chat c = new Chat(chatId,
+                    s(doc, "buyerEmail"),  s(doc, "buyerName"),
+                    s(doc, "sellerEmail"), s(doc, "sellerName"),
+                    s(doc, "adId"),        s(doc, "adTitle"),
+                    doc.getDouble("adPrice") != null ? doc.getDouble("adPrice") : 0);
+            long ts = doc.getLong("lastMessageTimestamp") != null
+                    ? doc.getLong("lastMessageTimestamp") : 0;
+            c.setLastMessageTimestamp(ts);
+            c.setLastMessageText(s(doc, "lastMessageText"));
+            c.setDisabled(Boolean.TRUE.equals(doc.getBoolean("disabled")));
+            return c;
+        } catch (Exception e) { return null; }
+    }
+
+    private Map<String, Object> messageToMap(Message msg) {
+        Map<String, Object> m = new HashMap<>();
+        m.put("msgId",           msg.getMsgId());
+        m.put("chatId",          msg.getChatId());
+        m.put("senderEmail",     msg.getSenderEmail());
+        m.put("text",            msg.getText());
+        m.put("timestamp",       msg.getTimestamp());
+        m.put("type",            msg.getType());
+        m.put("deleted",         msg.isDeleted());
+        m.put("editedTimestamp", msg.getEditedTimestamp());
+        return m;
+    }
+
+    private Message docToMessage(DocumentSnapshot doc) {
+        if (doc == null || !doc.exists()) return null;
+        try {
+            String msgId  = s(doc, "msgId");
+            if (msgId.isEmpty()) msgId = doc.getId();
+            String type = s(doc, "type");
+            if (type.isEmpty()) type = Message.TYPE_TEXT;
+            long ts = doc.getLong("timestamp") != null ? doc.getLong("timestamp") : 0;
+            long editedTs = doc.getLong("editedTimestamp") != null
+                    ? doc.getLong("editedTimestamp") : 0;
+            boolean deleted = Boolean.TRUE.equals(doc.getBoolean("deleted"));
+            Message m = new Message(msgId, s(doc, "chatId"),
+                    s(doc, "senderEmail"), s(doc, "text"), ts, type);
+            m.setDeleted(deleted);
+            m.setEditedTimestamp(editedTs);
+            return m;
+        } catch (Exception e) { return null; }
+    }
+
+    private String s(DocumentSnapshot doc, String key) {
+        String v = doc.getString(key);
+        return v != null ? v : "";
+    }
+
+    /** True if the given email appears in the document's `deletedBy` array. */
+    @SuppressWarnings("unchecked")
+    private boolean inDeletedBy(DocumentSnapshot doc, String email) {
+        if (doc == null || email == null) return false;
+        List<String> deletedBy = (List<String>) doc.get("deletedBy");
+        if (deletedBy == null) return false;
+        for (String e : deletedBy) {
+            if (email.equalsIgnoreCase(e)) return true;
         }
-        return list;
+        return false;
     }
 
-    private void saveChat(Chat chat) {
-        Set<String> existing = new LinkedHashSet<>(prefs.getStringSet(KEY_CHATS, new LinkedHashSet<>()));
-        // Remove old entry for this chatId, then add updated
-        existing.removeIf(s -> {
-            Chat c = Chat.deserialize(s);
-            return c != null && c.getChatId().equals(chat.getChatId());
-        });
-        existing.add(chat.serialize());
-        prefs.edit().putStringSet(KEY_CHATS, existing).apply();
-    }
-
-    // Per-user per-chat settings — stored in "ucs_{email}" StringSet
-    // Each entry: "{chatId}|{muted:0/1}|{archived:0/1}|{deleted:0/1}|{lastSeen}"
+    // ── Local settings helpers ────────────────────────────────────────────────
 
     private static class UserChatSetting {
         boolean muted    = false;
@@ -463,8 +679,8 @@ public class ChatPreferences {
 
     private UserChatSetting getSetting(String chatId, String email) {
         String key = "ucs_" + email;
-        for (String s : prefs.getStringSet(key, new LinkedHashSet<>())) {
-            String[] p = s.split("\\|", -1);
+        for (String entry : prefs.getStringSet(key, new LinkedHashSet<>())) {
+            String[] p = entry.split("\\|", -1);
             if (p.length >= 5 && p[0].equals(chatId)) {
                 UserChatSetting ucs = new UserChatSetting();
                 ucs.muted    = "1".equals(p[1]);
@@ -480,11 +696,12 @@ public class ChatPreferences {
     private void saveSetting(String chatId, String email, UserChatSetting ucs) {
         String key = "ucs_" + email;
         Set<String> set = new LinkedHashSet<>(prefs.getStringSet(key, new LinkedHashSet<>()));
-        set.removeIf(s -> s.startsWith(chatId + "|"));
-        set.add(chatId + "|" + (ucs.muted ? "1" : "0")
-                + "|" + (ucs.archived ? "1" : "0")
-                + "|" + (ucs.deleted ? "1" : "0")
-                + "|" + ucs.lastSeen);
+        set.removeIf(entry -> entry.startsWith(chatId + "|"));
+        set.add(chatId + "|"
+                + (ucs.muted    ? "1" : "0") + "|"
+                + (ucs.archived ? "1" : "0") + "|"
+                + (ucs.deleted  ? "1" : "0") + "|"
+                + ucs.lastSeen);
         prefs.edit().putStringSet(key, set).apply();
     }
 }

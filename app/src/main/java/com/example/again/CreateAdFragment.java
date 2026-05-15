@@ -5,7 +5,10 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.net.Uri;
+
+import androidx.exifinterface.media.ExifInterface;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -33,6 +36,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -58,13 +62,16 @@ public class CreateAdFragment extends Fragment {
 
     // ─── Arguments / edit mode ────────────────────────────────────────────────
 
-    private static final String ARG_EDIT_AD = "edit_ad";
+    private static final String ARG_EDIT_AD_ID = "edit_ad_id";
     private Ad editingAd;
+
+    /** Existing images per slot (kept when user doesn't replace them). */
+    private final String[] existingBase64 = new String[MAX_PHOTOS];
 
     public static CreateAdFragment newInstance(Ad ad) {
         CreateAdFragment f = new CreateAdFragment();
         Bundle args = new Bundle();
-        args.putString(ARG_EDIT_AD, ad.serialize());
+        args.putString(ARG_EDIT_AD_ID, ad.getId());
         f.setArguments(args);
         return f;
     }
@@ -100,6 +107,7 @@ public class CreateAdFragment extends Fragment {
     private final ActivityResultLauncher<Uri> cameraLauncher =
             registerForActivityResult(new ActivityResultContracts.TakePicture(), success -> {
                 if (success && cameraUri != null && activeSlot >= 0) {
+                    existingBase64[activeSlot] = null;  // replacing existing
                     slotUris[activeSlot] = cameraUri;
                     loadSlotPreview(activeSlot);
                 }
@@ -113,6 +121,7 @@ public class CreateAdFragment extends Fragment {
                         requireContext().getContentResolver().takePersistableUriPermission(
                                 uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
                     } catch (Exception ignored) {}
+                    existingBase64[activeSlot] = null;  // replacing existing
                     slotUris[activeSlot] = uri;
                     loadSlotPreview(activeSlot);
                 }
@@ -174,9 +183,9 @@ public class CreateAdFragment extends Fragment {
         });
         btnPostAd.setOnClickListener(v -> handlePost());
 
-        // Edit mode
-        if (getArguments() != null && getArguments().containsKey(ARG_EDIT_AD)) {
-            editingAd = Ad.deserialize(getArguments().getString(ARG_EDIT_AD));
+        // Edit mode — load Ad from cache using id
+        if (getArguments() != null && getArguments().containsKey(ARG_EDIT_AD_ID)) {
+            editingAd = AdPreferences.getCachedAd(getArguments().getString(ARG_EDIT_AD_ID));
             if (editingAd != null) prefillForEdit(editingAd);
         }
     }
@@ -211,13 +220,15 @@ public class CreateAdFragment extends Fragment {
         }
         conditionGroup.check(chipId);
 
-        // Load existing images
-        AdPreferences adPrefs = new AdPreferences(requireContext());
-        for (int i = 0; i < ad.getImageCount(); i++) {
-            File f = adPrefs.getImageFile(ad.getId(), i);
-            if (f != null) {
-                slotUris[i] = Uri.fromFile(f);
-                loadSlotPreview(i);
+        // Load existing images from base64 (Firestore)
+        java.util.List<String> imgs = ad.getImages();
+        for (int i = 0; i < imgs.size() && i < MAX_PHOTOS; i++) {
+            existingBase64[i] = imgs.get(i);
+            Bitmap bmp = AdPreferences.decodeImage(imgs.get(i));
+            if (bmp != null) {
+                ivSlots[i].setImageBitmap(bmp);
+                ivSlots[i].setVisibility(View.VISIBLE);
+                addIcons[i].setVisibility(View.GONE);
             }
         }
     }
@@ -268,21 +279,52 @@ public class CreateAdFragment extends Fragment {
         Uri uri = slotUris[slot];
         if (uri == null) return;
         try {
-            Bitmap bmp = "file".equals(uri.getScheme())
-                    ? BitmapFactory.decodeFile(uri.getPath())
-                    : BitmapFactory.decodeStream(requireContext().getContentResolver().openInputStream(uri));
-            if (bmp != null) {
-                ivSlots[slot].setImageBitmap(bmp);
-                ivSlots[slot].setVisibility(View.VISIBLE);
-                addIcons[slot].setVisibility(View.GONE);
-            }
+            InputStream is = requireContext().getContentResolver().openInputStream(uri);
+            if (is == null) return;
+            Bitmap bmp = BitmapFactory.decodeStream(is);
+            is.close();
+            if (bmp == null) return;
+
+            // Fix EXIF rotation so the preview matches what will be stored
+            bmp = fixPreviewOrientation(bmp, uri);
+
+            ivSlots[slot].setImageBitmap(bmp);
+            ivSlots[slot].setVisibility(View.VISIBLE);
+            addIcons[slot].setVisibility(View.GONE);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
+    private Bitmap fixPreviewOrientation(Bitmap bmp, Uri uri) {
+        try {
+            InputStream is = requireContext().getContentResolver().openInputStream(uri);
+            if (is == null) return bmp;
+            ExifInterface exif = new ExifInterface(is);
+            is.close();
+            int orientation = exif.getAttributeInt(
+                    ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+            int degrees = 0;
+            switch (orientation) {
+                case ExifInterface.ORIENTATION_ROTATE_90:  degrees = 90;  break;
+                case ExifInterface.ORIENTATION_ROTATE_180: degrees = 180; break;
+                case ExifInterface.ORIENTATION_ROTATE_270: degrees = 270; break;
+            }
+            if (degrees != 0) {
+                Matrix matrix = new Matrix();
+                matrix.postRotate(degrees);
+                Bitmap rotated = Bitmap.createBitmap(
+                        bmp, 0, 0, bmp.getWidth(), bmp.getHeight(), matrix, true);
+                bmp.recycle();
+                return rotated;
+            }
+        } catch (Exception ignored) {}
+        return bmp;
+    }
+
     private void removeSlot(int slot) {
         slotUris[slot] = null;
+        existingBase64[slot] = null;
         ivSlots[slot].setVisibility(View.GONE);
         addIcons[slot].setVisibility(View.VISIBLE);
     }
@@ -333,32 +375,60 @@ public class CreateAdFragment extends Fragment {
 
         String condition = resolveCondition(checkedId);
 
-        List<Uri> uris = new ArrayList<>();
-        for (Uri u : slotUris) { if (u != null) uris.add(u); }
+        btnPostAd.setEnabled(false);
 
         AdPreferences adPrefs = new AdPreferences(requireContext());
 
         if (editingAd != null) {
+            final String adId = editingAd.getId();
             adPrefs.updateAd(editingAd, name, condition, area,
                     cbPickup.isChecked(), cbShipping.isChecked(), price,
-                    ageValue, ageUnit, description, uris);
-            // Keep all existing chats in sync with the new product name
-            new ChatPreferences(requireContext()).updateAdTitleInChats(editingAd.getId(), name);
-            Toast.makeText(getContext(), "Ad updated!", Toast.LENGTH_SHORT).show();
+                    ageValue, ageUnit, description,
+                    slotUris, existingBase64,
+                    (ok, err) -> {
+                        if (!isAdded()) return;
+                        if (ok) {
+                            ChatPreferences chatPrefs =
+                                    new ChatPreferences(requireContext());
+                            chatPrefs.updateAdTitleInChats(adId, name);
+                            chatPrefs.sendEditedNotification(
+                                    adId, editingAd.getOwnerEmail(), name);
+                            Toast.makeText(getContext(), "Ad updated!", Toast.LENGTH_SHORT).show();
+                            if (listener != null) listener.onAdCreated();
+                        } else {
+                            btnPostAd.setEnabled(true);
+                            Toast.makeText(getContext(),
+                                    "Could not save: " + err, Toast.LENGTH_SHORT).show();
+                        }
+                    });
         } else {
             UserPreferences up = new UserPreferences(requireContext());
             String[] user = up.getLoggedInUser();
             if (user == null) {
-                Toast.makeText(getContext(), "You must be signed in to post an ad", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getContext(), "You must be signed in to post an ad",
+                        Toast.LENGTH_SHORT).show();
+                btnPostAd.setEnabled(true);
                 return;
             }
-            adPrefs.saveAd(user[0], user[1], name, condition, area,
-                    cbPickup.isChecked(), cbShipping.isChecked(), price,
-                    ageValue, ageUnit, description, uris);
-            Toast.makeText(getContext(), "Ad posted!", Toast.LENGTH_SHORT).show();
-        }
+            List<Uri> uris = new ArrayList<>();
+            for (Uri u : slotUris) { if (u != null) uris.add(u); }
 
-        if (listener != null) listener.onAdCreated();
+            adPrefs.saveAd(user[0], user[1], up.getUid(),
+                    name, condition, area,
+                    cbPickup.isChecked(), cbShipping.isChecked(), price,
+                    ageValue, ageUnit, description, uris,
+                    (ok, err) -> {
+                        if (!isAdded()) return;
+                        if (ok) {
+                            Toast.makeText(getContext(), "Ad posted!", Toast.LENGTH_SHORT).show();
+                            if (listener != null) listener.onAdCreated();
+                        } else {
+                            btnPostAd.setEnabled(true);
+                            Toast.makeText(getContext(),
+                                    "Could not post: " + err, Toast.LENGTH_SHORT).show();
+                        }
+                    });
+        }
     }
 
     private String resolveCondition(int chipId) {
